@@ -34,12 +34,12 @@ export function useApprovalFocus({ taskId, conversationId }: { taskId?: string; 
             ? source.conversation_id !== conversationId
             : source.task_id !== taskId || source.conversation_id != null
         ) {
-          throw new Error("审批来源与当前会话不一致");
+          throw new Error("승인 출처와 현재 세션이 일치하지 않습니다");
         }
         setState({ id, source, loading: false });
       })
       .catch((e) => {
-        if (!cancelled) setState({ id, error: (e as Error).message || "无法定位原始执行", loading: false });
+        if (!cancelled) setState({ id, error: (e as Error).message || "원본 실행 위치를 찾을 수 없습니다", loading: false });
       });
     return () => {
       cancelled = true;
@@ -78,13 +78,13 @@ export function useApprovalHistory(
         const page = await loadPage(before);
         if (cancelled) return;
         if (!page.items.length || (before > 0 && page.items[0].seq >= before)) {
-          throw new Error("会话中未找到对应工具调用，记录可能已删除");
+          throw new Error("세션에서 해당 도구 호출을 찾지 못했습니다. 기록이 삭제되었을 수 있습니다");
         }
         mergePage(page);
         current = page.items;
         before = current[0].seq;
         if (!page.hasMore && !current.some((a) => a.seq === source.seq)) {
-          throw new Error("会话中未找到对应工具调用");
+          throw new Error("세션에서 해당 도구 호출을 찾지 못했습니다");
         }
       }
       if (!cancelled) setResult({ source });
@@ -118,19 +118,19 @@ export function ApprovalExecutionFocus({
     >
       <span className={error ? "text-destructive" : "text-muted-foreground"}>
         {error
-          ? `无法定位：${error}`
+          ? `위치를 찾을 수 없습니다: ${error}`
           : history.ready
-            ? `已展开审批 #${state.id} 对应的工具调用`
-            : `正在加载审批 #${state.id} 所在的对话位置…`}
+            ? `승인 기록을 펼쳤습니다 #${state.id} 해당 도구 호출`
+            : `승인 기록 불러오는 중 #${state.id} 대화 내 위치…`}
       </span>
       <div className="flex gap-2">
         {error ? (
           <Button size="sm" variant="outline" onClick={focus.retry}>
-            重试定位
+            위치 찾기 다시 시도
           </Button>
         ) : null}
         <Button size="sm" variant="ghost" onClick={focus.close}>
-          取消定位
+          위치 찾기 취소
         </Button>
       </div>
     </div>
