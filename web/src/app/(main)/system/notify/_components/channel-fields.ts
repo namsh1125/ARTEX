@@ -5,12 +5,12 @@
 // 单独放一个文件后，新增渠道只需要动这里，页面本身不必改。
 // 渠道类型的展示名与简介。放在前端是因为它只影响文案，后端不需要知道。
 export const KIND_LABEL: Record<string, string> = {
-  dingtalk: "钉钉",
-  feishu: "飞书",
-  wecom: "企业微信",
-  webhook: "通用 Webhook",
+  dingtalk: "DingTalk",
+  feishu: "Feishu",
+  wecom: "WeCom",
+  webhook: "일반 Webhook",
   telegram: "Telegram",
-  email: "邮件",
+  email: "이메일",
 };
 
 // 各渠道的配置字段定义。
@@ -34,56 +34,56 @@ export const CHANNEL_FIELDS: Record<string, FieldDef[]> = {
   dingtalk: [
     {
       key: "webhook",
-      label: "Webhook 地址",
+      label: "Webhook 주소",
       kind: "text",
       placeholder: "https://oapi.dingtalk.com/robot/send?access_token=...",
     },
     {
       key: "secret",
-      label: "加签密钥",
+      label: "서명 키",
       kind: "password",
-      help: "机器人安全设置选「加签」时填写；选「自定义关键词」或未开启安全设置则留空",
+      help: "봇 보안 설정에서 「서명」을 선택한 경우 입력합니다. 「사용자 지정 키워드」를 선택했거나 보안 설정이 꺼져 있으면 비워 두세요",
     },
   ],
   feishu: [
     {
       key: "webhook",
-      label: "Webhook 地址",
+      label: "Webhook 주소",
       kind: "text",
       placeholder: "https://open.feishu.cn/open-apis/bot/v2/hook/...",
     },
-    { key: "secret", label: "签名校验密钥", kind: "password", help: "机器人开启「签名校验」时填写，否则留空" },
+    { key: "secret", label: "서명 검증 키", kind: "password", help: "봇의 「서명 검증」이 켜져 있으면 입력하고 그렇지 않으면 비워 두세요" },
   ],
   wecom: [
     {
       key: "webhook",
-      label: "Webhook 地址",
+      label: "Webhook 주소",
       kind: "text",
       placeholder: "https://qyapi.weixin.qq.com/cgi-bin/webhook/send?key=...",
     },
   ],
   webhook: [
-    { key: "url", label: "目标 URL", kind: "text", placeholder: "https://your-endpoint.example.com/hook" },
+    { key: "url", label: "목표 URL", kind: "text", placeholder: "https://your-endpoint.example.com/hook" },
     {
       key: "method",
-      label: "请求方法",
+      label: "요청 메서드",
       kind: "select",
       options: [
-        { value: "POST", label: "POST（带请求体）" },
-        { value: "PUT", label: "PUT（带请求体）" },
-        { value: "PATCH", label: "PATCH（带请求体）" },
-        { value: "GET", label: "GET（不带请求体）" },
+        { value: "POST", label: "POST(요청 본문 포함)" },
+        { value: "PUT", label: "PUT(요청 본문 포함)" },
+        { value: "PATCH", label: "PATCH(요청 본문 포함)" },
+        { value: "GET", label: "GET(요청 본문 없음)" },
       ],
     },
-    { key: "headers", label: "自定义请求头", kind: "kv", help: "每行 KEY=VALUE，例如 Authorization=Bearer xxx" },
+    { key: "headers", label: "사용자 지정 요청 헤더", kind: "kv", help: "한 줄에 하나 KEY=VALUE, 예: Authorization=Bearer xxx" },
     {
       key: "body_template",
-      label: "请求体模板",
+      label: "요청 본문 템플릿",
       kind: "textarea",
       help:
-        "留空用内置默认模板。变量：{{.Title}} {{.Batch}} {{.Count}} {{.HomeURL}} {{.SentAt}}，" +
-        "以及 range .Items 下的 .Name/.VulnClass/.Severity/.Summary/.Assets/.DetailURL/.StatusLabel。" +
-        "插入字符串请用 {{json .Xxx}} 而不是 {{.Xxx}}，否则标题里的引号会破坏 JSON。",
+        "비워 두면 기본 템플릿을 사용합니다. 변수: {{.Title}} {{.Batch}} {{.Count}} {{.HomeURL}} {{.SentAt}},  " +
+        "및 range .Items 아래의 .Name/.VulnClass/.Severity/.Summary/.Assets/.DetailURL/.StatusLabel." +
+        "문자열에는 {{.Xxx}} 대신 {{json .Xxx}}를 사용하세요. 그렇지 않으면 제목의 따옴표로 JSON 형식이 깨질 수 있습니다.",
     },
   ],
   telegram: [
@@ -91,35 +91,35 @@ export const CHANNEL_FIELDS: Record<string, FieldDef[]> = {
     { key: "chat_id", label: "Chat ID", kind: "text", placeholder: "-1001234567890" },
     {
       key: "base_url",
-      label: "API 地址",
+      label: "API 주소",
       kind: "text",
       placeholder: "https://api.telegram.org",
-      help: "留空用官方地址；自建 Bot API 反代时填写",
+      help: "비워 두면 공식 주소를 사용합니다. 직접 구축한 Bot API 리버스 프록시를 사용하는 경우 입력하세요",
     },
   ],
   email: [
-    { key: "host", label: "SMTP 服务器", kind: "text", placeholder: "smtp.example.com" },
+    { key: "host", label: "SMTP 서버", kind: "text", placeholder: "smtp.example.com" },
     {
       key: "port",
-      label: "端口",
+      label: "포트",
       kind: "number",
       placeholder: "587",
-      help: "587 走 STARTTLS；465 请把「隐式 TLS」打开",
+      help: "587 사용 STARTTLS; 465 「암시적 TLS」열기",
     },
-    { key: "username", label: "账号", kind: "text" },
-    { key: "password", label: "密码 / 授权码", kind: "password" },
-    { key: "from", label: "发件人", kind: "text", placeholder: "artex@example.com" },
-    { key: "to", label: "收件人", kind: "list", help: "多个地址用逗号分隔" },
-    { key: "tls", label: "隐式 TLS", kind: "switch", help: "465 端口打开；587 保持关闭（会自动 STARTTLS）" },
+    { key: "username", label: "계정", kind: "text" },
+    { key: "password", label: "비밀번호 / 인증 코드", kind: "password" },
+    { key: "from", label: "보내는 사람", kind: "text", placeholder: "artex@example.com" },
+    { key: "to", label: "받는 사람", kind: "list", help: "여러 주소는 쉼표로 구분" },
+    { key: "tls", label: "암시적 TLS", kind: "switch", help: "465 포트에서는 활성화; 587 비활성 상태 유지(자동 전환: STARTTLS)" },
   ],
 };
 
 export const SEVERITY_OPTIONS = [
-  { value: "", label: "不限" },
-  { value: "low", label: "低危及以上" },
-  { value: "medium", label: "中危及以上" },
-  { value: "high", label: "高危及以上" },
-  { value: "critical", label: "仅严重" },
+  { value: "", label: "제한 없음" },
+  { value: "low", label: "낮음 이상" },
+  { value: "medium", label: "중간 이상" },
+  { value: "high", label: "높음 이상" },
+  { value: "critical", label: "심각만" },
 ];
 
 export type ChannelForm = {
