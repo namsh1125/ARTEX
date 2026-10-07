@@ -6,7 +6,7 @@ export type EngineMode = "exploring" | "paused" | "stalled" | "idle";
 
 export interface Task {
   id: string;
-  name?: string; // 可选任务名称;空/缺省=未命名,展示时回退到描述
+  name?: string; // 선택적인 작업 이름;비어 있음/기본=이름 없음,표시 시 설명으로 대체
   category_id?: number;
   category_name?: string;
   pinned?: boolean;
@@ -23,7 +23,7 @@ export interface Task {
   queued?: boolean;
   active?: boolean;
   in_flight?: number;
-  findings?: { critical: number; high: number; medium: number; low: number }; // 已登记漏洞数(按严重度分档)
+  findings?: { critical: number; high: number; medium: number; low: number }; // 등록된 취약점 수(심각도별 구분)
   last_activity?: string;
   stalled?: boolean;
   goals_total?: number;
@@ -38,7 +38,7 @@ export interface Task {
   source_task_ids?: string[]; // directly related tasks inherited as read-only context
   archive_blocked_by_task_id?: string; // live direct dependent that must be archived first
   company_ids?: number[]; // associated company scopes; current company assets join the task at creation
-  coverage_enabled?: boolean; // 资产覆盖度功能开关(创建时定,默认开)；false=不计算/不展示覆盖度
+  coverage_enabled?: boolean; // 자산 커버리지 기능 스위치(생성 시 결정,기본 활성화)；false=계산하지 않음/커버리지를 표시하지 않음
 }
 
 export interface TaskCategory {
@@ -54,8 +54,8 @@ export interface TaskTemplate {
   name: string;
   description: string;
   goal: string;
-  category_id?: number | null; // 预设分类；null/缺省=无
-  intercept_rules?: AssetInterceptRuleInput[]; // 预设的任务级拦截/允许规则
+  category_id?: number | null; // 미리 지정한 분류；null/기본=없음
+  intercept_rules?: AssetInterceptRuleInput[]; // 미리 지정한 작업별 차단/허용 규칙
   created_at: string;
   updated_at: string;
 }
@@ -169,7 +169,7 @@ export interface AssetNode {
   name: string;
   key: string; // nkey
   value?: string;
-  company_id?: string; // 归属公司资产 id；空=未归属
+  company_id?: string; // 소속 기업 자산 id；비어 있음=미지정
   state: NodeState;
   confidence: number; // 0..1
   attrs?: Record<string, unknown>;
@@ -356,7 +356,7 @@ export interface TaskScopeRow {
   task_id: number;
   kind: "company" | "root_domain" | "subdomain" | "ip" | "cidr" | "icp" | "keyword";
   company_id?: number;
-  company_name?: string; // 后端 JOIN companies 解析，仅 kind=company 有值
+  company_name?: string; // 백엔드 JOIN companies 파싱, 다음에만 kind=company 값 있음
   domain?: string;
   net?: string;
   value?: string;
@@ -387,10 +387,10 @@ export interface ScopeRow {
   id: number;
   company_id: number;
   kind: CompanyScopeKind;
-  domain?: string; // kind=domain 时有值
-  net?: string; // kind=ip|cidr 时有值
-  value?: string; // kind=icp|keyword 时可能由后端直接返回
-  raw: string; // 原始用户输入，用于显示和回填
+  domain?: string; // kind=domain 일 때 값 있음
+  net?: string; // kind=ip|cidr 일 때 값 있음
+  value?: string; // kind=icp|keyword 일 때 백엔드에서 직접 반환할 수 있음
+  raw: string; // 표시 및 다시 채우기에 사용하는 원본 사용자 입력
   reason?: string;
 }
 
@@ -398,7 +398,7 @@ export interface ScopeRow {
 export interface Company {
   id: number;
   name: string;
-  logo?: string; // 远程图标 URL；空则前端用名称首字母
+  logo?: string; // 원격 아이콘 URL；비어 있으면 이름의 첫 글자 사용
   asset_count: number;
   scope?: ScopeRow[];
 }
@@ -421,7 +421,7 @@ export interface TaskNode {
   ts: string;
   source_task_id?: string;
   inherited?: boolean;
-  delete_reason?: string; // 意图假删除(state='deleted')时的删除原因
+  delete_reason?: string; // 의도 임시 삭제(state='deleted')시 삭제 사유
 }
 
 // 播报板一页:按创建顺序分页的节点 + 这一页涉及的边 + 边另一端的节点(refs,按 id 索引),
@@ -494,14 +494,14 @@ export interface Finding {
   report_evidence_version?: number;
   report_stale?: boolean;
   id: string;
-  finding_id?: string; // 独立 findings 表的行 id,状态更新的句柄(任务内旧节点可能缺失)
+  finding_id?: string; // 독립 findings 테이블의 행 id,상태 갱신 핸들(작업 내부의 이전 노드는 없을 수 있음)
   vulnclass: string;
-  name?: string; // 漏洞名称;为空时展示回退到 vulnclass
+  name?: string; // 취약점 이름;비어 있으면 다음으로 대체 표시: vulnclass
   severity: Severity;
   status: FindingStatus;
   summary: string;
   evidence: string;
-  report?: string; // 详细报告(Markdown);仅详情接口返回,列表为空
+  report?: string; // 상세 보고서(Markdown);상세 API에서만 반환,목록에서는 비어 있음
   intent_id?: string;
   param_id?: string;
   task_id?: string;
@@ -522,7 +522,7 @@ export interface FindingsPage {
 
 export interface FindingGroup {
   task_id: string | number | null;
-  task_name?: string; // 可选任务名称;空/缺省=未命名
+  task_name?: string; // 선택적인 작업 이름;비어 있음/기본=이름 없음
   task_description: string;
   task_status: string;
   count: number;
@@ -564,7 +564,7 @@ export interface FindingStats {
 // 前端回退展示 id)及其漏洞条数。
 export interface FindingTaskOption {
   id: string | number;
-  name?: string; // 可选任务名称;空/缺省=未命名
+  name?: string; // 선택적인 작업 이름;비어 있음/기본=이름 없음
   description: string;
   count: number;
 }
@@ -576,7 +576,7 @@ export interface FindingQuery {
   severity?: "all" | Severity;
   status?: "all" | FindingStatus;
   vulnclass?: string;
-  task?: string; // 任务 id;"all"/空 = 不按任务筛选
+  task?: string; // 작업 id;"all"/비어 있음 = 작업별 필터링 안 함
   query?: string;
   sort?: "severity" | "time";
   // 资产树节点 key;选中一个节点 = 选中它的整棵子树。空 = 不按资产筛选。
@@ -595,8 +595,8 @@ export interface FindingAssetNode {
   label: string;
   asset_id?: number;
   company_id?: number;
-  self: number; // 直接挂在该资产上的发现数
-  total: number; // 含子孙、按发现去重
+  self: number; // 이 자산에 직접 연결된 발견 사항 수
+  total: number; // 하위 항목 포함, 발견 사항 기준 중복 제거
   critical: number;
   high: number;
   medium: number;
@@ -634,7 +634,7 @@ export interface ChatAttachment {
   name: string;
   path: string;
   size: number;
-  abs?: string; // 绝对路径(scope=staging 暂存上传时返回;建任务前把它写进描述)
+  abs?: string; // 절대 경로(scope=staging 임시 업로드 시 반환;작업 생성 전 설명에 기록)
 }
 
 export interface Activity {
@@ -696,19 +696,19 @@ export interface AgentTrigger {
   id: number;
   agent_key: string;
   enabled: boolean;
-  interval_sec: number; // 定时:每 N 秒(0=不定时)
-  on_finding: boolean; // 任意任务发现 finding 时触发
-  on_goal_met: boolean; // 任意任务达成目标时触发
-  on_task_timeout: boolean; // 任意任务超时时触发
-  on_tool_call: boolean; // 选中工具被调用(执行完成)时触发
-  on_task_create: boolean; // 任意任务被创建时触发
-  interval_message: string; // 各触发条件的独立用户消息
+  interval_sec: number; // 주기:매 N 초(0=일정 없음)
+  on_finding: boolean; // 어떤 작업이든 발견 시 finding 발생 시 트리거
+  on_goal_met: boolean; // 어떤 작업이든 목표 달성 시 트리거
+  on_task_timeout: boolean; // 어떤 작업이든 시간 초과 시 트리거
+  on_tool_call: boolean; // 선택한 도구 호출됨(실행 완료)발생 시 트리거
+  on_task_create: boolean; // 어떤 작업이든 생성 시 트리거
+  interval_message: string; // 조건별 독립 사용자 메시지
   finding_message: string;
   goal_message: string;
   task_timeout_message: string;
   tool_call_message: string;
   task_create_message: string;
-  tool_names: string[]; // on_tool_call 选中的工具 key(至少一个)
+  tool_names: string[]; // on_tool_call 선택한 도구 key(하나 이상)
   last_fire?: string;
 }
 
@@ -910,8 +910,8 @@ export interface TrafficHost {
 // ---- App settings (runtime toggles) ----
 export interface Settings {
   traffic_capture: boolean;
-  agent_traffic_binding: boolean; // Agent 自动绑定流量证据，默认关闭；不影响人工绑定
-  llm_record: boolean; // LLM 录制开关（默认关）；关闭时不记录任何 LLM 调用
+  agent_traffic_binding: boolean; // Agent 트래픽 증거 자동 연결, 기본 비활성화. 수동 연결에는 영향 없음
+  llm_record: boolean; // LLM 기록 스위치(기본 꺼짐). 끄면 기록하지 않음: LLM 호출
   // Web search. brave_key_set / tavily_key_set reflect whether a key is stored
   // (the values are never returned). On PUT, send the corresponding field to set/clear.
   web_search_enabled: boolean;
@@ -926,14 +926,14 @@ export interface Settings {
   // 全局出口代理(http/https/socks5，可带 user:pass)，所有目标流量走它。开启流量捕获时作为
   // MITM 上游；关闭捕获时直接注入 agent 的 bash/WebFetch。空=直连。
   global_proxy?: string;
-  python_interpreter?: string; // 自定义脚本工具的 python 解释器路径(空=运行时检测)
-  workers?: number; // 并发工作 agent 数(默认3)；对之后启动的任务生效
+  python_interpreter?: string; // 사용자 지정 스크립트 도구의 python 인터프리터 경로(비어 있음=런타임 감지)
+  workers?: number; // 동시 실행 작업 agent 수(기본값3)；이후 시작하는 작업에 적용
   // 任务并发上限:同时「运行中」的任务数上限。关闭=不限;开启后新建任务超限则排队,有空位自动启动。
-  task_concurrency_enabled?: boolean; // 默认 false
-  task_concurrency_limit?: number; // 开启后默认 5
+  task_concurrency_enabled?: boolean; // 기본값 false
+  task_concurrency_limit?: number; // 활성화 시 기본값 5
   // LLM 轮询(故障转移)。默认关；开启后「未指定模型」的 agent 在当前配置不可用
   // （余额不足/key 失效/限流/服务异常）时自动切到下一个配置。
-  llm_pool_enabled?: boolean; // 默认 false
+  llm_pool_enabled?: boolean; // 기본값 false
   // 绑定了指定配置的 agent/任务失败时是否也回落到轮询链。默认 false = 绑定即独占。
   llm_pool_bind_fallback?: boolean;
   // 操作约束注入范围(默认都开):把任务的 allow/deny 约束拼进对应 agent 的系统提示。
@@ -944,9 +944,9 @@ export interface Settings {
   // 之后启动的 run 生效。
   noa_compaction?: boolean;
   // ---- 漏洞 IM 推送（渠道本身是独立资源，见 /api/notify/*，这里只有三项全局配置）----
-  notify_enabled?: boolean; // 推送总开关，默认开；用于维护期一键止血
-  notify_public_base_url?: string; // 漏洞详情回链的外部访问地址；空=消息不带回链
-  notify_digest_interval_min?: number; // 汇总模式周期（分钟），默认 30
+  notify_enabled?: boolean; // 알림 전체 스위치, 기본 켜짐. 유지보수 중 즉시 중단 용도
+  notify_public_base_url?: string; // 취약점 상세로 돌아갈 외부 주소. 비어 있으면=메시지에 링크 미포함
+  notify_digest_interval_min?: number; // 취합 모드 주기(분), 기본값 30
 }
 
 // ---- 漏洞 IM 推送 ----
@@ -955,11 +955,11 @@ export interface Settings {
 // 后端对所有字段都不加校验：配置畸形时按「命中」处理（宁可多推不可漏推）。
 export interface NotificationFilter {
   min_severity?: string; // "" | low | medium | high | critical
-  task_ids?: number[]; // 空=不限；非空则要求与漏洞所属任务有交集
-  asset_ids?: number[]; // 空=不限；非空则要求与漏洞锚定资产有交集
-  vulnclass_include?: string[]; // 空=全收；非空则要求漏洞类型命中任一关键词（大小写不敏感子串）
-  vulnclass_exclude?: string[]; // 命中任一关键词即排除（排除优先于包含）
-  on_status_change?: boolean; // 是否也接收漏洞处置状态变更事件
+  task_ids?: number[]; // 비어 있음=제한 없음. 값이 있으면 취약점의 작업과 공통 항목 필요
+  asset_ids?: number[]; // 비어 있음=제한 없음. 값이 있으면 취약점에 연결된 자산과 공통 항목 필요
+  vulnclass_include?: string[]; // 비어 있음=모두 수신. 값이 있으면 취약점 유형이 키워드 중 하나와 일치해야 함(대소문자 무시 부분 문자열）
+  vulnclass_exclude?: string[]; // 키워드 중 하나라도 일치하면 제외(포함보다 우선）
+  on_status_change?: boolean; // 취약점 처리 상태 변경 이벤트 수신 여부
 }
 
 // NotificationChannel 是一个渠道实例。config 的字段随 kind 而异，
@@ -1069,9 +1069,9 @@ export interface LLMRetryRule {
 
 // 单个 LLM 配置能覆盖的三层（都是「跟着端点走」的重试）。
 export interface LLMRetryOverride {
-  connect: LLMRetryRule; // 建连重试：连接重置/超时/429/5xx，流开始前
-  empty: LLMRetryRule; // 空响应重试：完成但没有任何内容（仅 openai 格式）
-  stream: LLMRetryRule; // 同 provider 安全窗口重试：未交付输出前的断流重放
+  connect: LLMRetryRule; // 연결 재시도: 연결 재설정/시간 초과/429/5xx，스트림 시작 전
+  empty: LLMRetryRule; // 빈 응답 재시도: 완료했으나 내용 없음(전용: openai 형식）
+  stream: LLMRetryRule; // 동일 provider 안전 구간 재시도: 출력 전달 전 스트림 끊김 재생
 }
 
 // 全局策略 = 上面三层的默认值 + 两层只有全局的：
@@ -1093,8 +1093,8 @@ export interface LLMPoolMember {
   model: string;
   format: string;
   priority: number;
-  active: boolean; // 是否为当前激活配置（恒为链首）
-  excluded: boolean; // pool_exclude：不参与轮询
+  active: boolean; // 현재 활성 설정 여부(항상 체인의 첫 번째）
+  excluded: boolean; // pool_exclude：순환 선택 제외
   state: "ok" | "degraded" | "tripped";
   fails: number;
   trips: number;
@@ -1112,21 +1112,21 @@ export interface LLMPoolStatus {
 // ---- Agents ----
 export interface Agent {
   id: string;
-  key: string; // 内置为 goals/planner/mainagent/worker；自定义为用户自定 key
+  key: string; // 기본 제공 값: goals/planner/mainagent/worker；사용자 지정 값 key
   name: string;
   description?: string;
   role: string;
   builtin: boolean;
   enabled: boolean;
-  llm_profile_id?: number | null; // 绑定的 LLM 配置；null/absent = 跟随任务/会话/全局
-  max_turns?: number; // 0 = 无限制
-  run_seconds?: number; // worker 单次运行墙钟上限(秒)；0 = 无限制
-  web_search?: boolean; // 是否启用网络搜索(受系统全局开关门控)
-  interactive_shell?: boolean; // 是否启用交互式 shell(持久 PTY 会话工具族)
+  llm_profile_id?: number | null; // 연결된 LLM 설정；null/absent = 작업 설정 사용/세션/전역
+  max_turns?: number; // 0 = 제한 없음
+  run_seconds?: number; // worker 단일 실행의 실제 경과 시간 한도(초)；0 = 제한 없음
+  web_search?: boolean; // 웹 검색 활성화 여부(시스템 전역 스위치로 제어)
+  interactive_shell?: boolean; // 대화형 기능 활성화 여부: shell(영구 PTY 세션 도구 모음)
   // P3 触发后处理策略(仅自定义 agent 有意义)
-  trigger_run_mode?: "serial" | "parallel"; // 串行排队 / 每次触发各自并发一个会话
-  trigger_merge_mode?: "by_task" | "all" | "none"; // 仅 serial：同任务合并 / 全部合并 / 不合并
-  trigger_max_parallel?: number; // 仅 parallel：每 agent 并发上限；0=不限
+  trigger_run_mode?: "serial" | "parallel"; // 직렬 대기열 / 트리거마다 별도 세션 동시 실행
+  trigger_merge_mode?: "by_task" | "all" | "none"; // 전용 serial：동일 작업 통합 / 전체 통합 / 통합하지 않음
+  trigger_max_parallel?: number; // 전용 parallel：매 agent 동시 실행 한도；0=제한 없음
   // 绑定数量(仅列表接口返回)：可见 MCP / 可见 Skill / 绑定工具
   mcp_count?: number;
   skill_count?: number;
@@ -1155,10 +1155,10 @@ export interface AgentDetail {
   visibility: { mcp: number[]; skill: string[] };
   // 可绑定的 LLM 配置候选(供「默认模型」下拉)；当前绑定见 agent.llm_profile_id
   llm_profiles?: { id: number; name: string; model: string; is_default: boolean }[];
-  wrapup_prompt?: string; // 已保存的收尾提示词(空=用内置默认)
-  wrapup_default?: string; // 内置默认收尾提示词(占位/恢复默认)
-  wrapup_max_turns?: number; // 已保存的收尾轮数(0=用内置默认)
-  wrapup_max_turns_default?: number; // 内置默认收尾轮数(供 "0=默认N" 提示)
+  wrapup_prompt?: string; // 저장된 종료 프롬프트(비어 있음=기본값 사용)
+  wrapup_default?: string; // 기본 종료 프롬프트(자리표시자/기본값 복원)
+  wrapup_max_turns?: number; // 저장된 종료 반복 횟수(0=기본값 사용)
+  wrapup_max_turns_default?: number; // 기본 종료 반복 횟수(제공 대상: "0=기본값N" 힌트)
   // 任务级超时收尾词(仅 worker/planner，task_timeout_wrapup_supported=true 时才显示该分区)
   task_timeout_wrapup_supported?: boolean;
   task_timeout_wrapup_prompt?: string;
@@ -1198,8 +1198,8 @@ export interface SkillItem {
   files: string[]; // files in the skill directory
   // 调用统计（skill_usage 账本）。从未被调用过的 skill：calls=0、last_used 缺省。
   calls: number;
-  tasks: number; // 加载过它的任务数（chat 会话不计入）
-  usage_agents: string[]; // 加载过它的 agent key
+  tasks: number; // 불러온 적 있는 작업 수（chat 세션은 제외）
+  usage_agents: string[]; // 불러온 적 있는 agent key
   last_used?: string;
 }
 
@@ -1207,7 +1207,7 @@ export interface SkillItem {
 export interface SkillCall {
   ts: string;
   agent_key: string;
-  task_id: number; // 0 = 非任务场景（对话会话）
+  task_id: number; // 0 = 작업 외 상황(대화 세션）
   session_id: string;
   args_len: number;
 }
@@ -1232,10 +1232,10 @@ export interface Tool {
   schema: Record<string, any>; // full JSON-Schema (object with properties)
   agents: string[]; // bound agent keys
   enabled: boolean;
-  kind?: "builtin" | "shell" | "command" | "script" | "http"; // 自定义工具类型
+  kind?: "builtin" | "shell" | "command" | "script" | "http"; // 사용자 지정 도구 유형
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  exec?: Record<string, any>; // 自定义工具执行规格(kind!=builtin)
-  deferred?: boolean; // schema 延迟(SearchExtraTools/ExecuteExtraTool)
+  exec?: Record<string, any>; // 사용자 지정 도구 실행 규격(kind!=builtin)
+  deferred?: boolean; // schema 지연 시간(SearchExtraTools/ExecuteExtraTool)
   calls?: number; // persistent runtime invocation count (older APIs may omit it)
 }
 
@@ -1296,7 +1296,7 @@ export interface AssetInterceptRuleInput {
 export interface AssetInterceptRule {
   id: number;
   enabled: boolean;
-  action?: AssetInterceptAction; // 全局规则不带此字段（恒为拦截）；任务级规则区分 block/allow
+  action?: AssetInterceptAction; // 전역 규칙은 이 필드가 없으며 항상 차단. 작업별 규칙에서는 구분 block/allow
   kind: AssetInterceptKind;
   pattern: string;
   note: string;
@@ -1316,7 +1316,7 @@ export interface InterceptPending {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   tool_input: Record<string, any>;
   status: "pending" | "allowed" | "denied" | "timeout";
-  reason: string; // 规则 message 或模型判定理由(模型判定带 [模型] 前缀)
+  reason: string; // 규칙 message 또는 모델의 판단 사유(모델 판단에 포함: [모델] 접두사)
   decided_at?: string;
   created_at: string;
 }
@@ -1324,12 +1324,12 @@ export interface InterceptPending {
 // JudgeConfig: 模型兜底审批(仅当没有任何拦截规则命中时由模型判断)的全局配置。
 export interface JudgeConfig {
   enabled: boolean;
-  profile_id: number; // 0 = 跟随激活/默认配置
-  prompt: string; // 判定提示词;GET 未设置时后端回填内置模板全文
-  timeout_seconds: number; // 模型调用超时
-  fail_action: "allow" | "ask" | "deny"; // 模型出错/超时/不可解析时的回退
-  ask_timeout_seconds: number; // 模型判 ask 转人工后的审批等待超时
-  ask_timeout_action: "allow" | "deny"; // 审批超时后的默认动作
+  profile_id: number; // 0 = 활성 설정 사용/기본 설정
+  prompt: string; // 판단 프롬프트;GET 미설정 시 백엔드에서 기본 템플릿 전체를 채움
+  timeout_seconds: number; // 모델 호출 시간 제한
+  fail_action: "allow" | "ask" | "deny"; // 모델 오류/시간 초과/파싱 불가 시 대체 처리
+  ask_timeout_seconds: number; // 모델 판단 ask 수동 승인 전환 후 대기 시간 제한
+  ask_timeout_action: "allow" | "deny"; // 승인 시간 초과 후 기본 동작
 }
 
 // JudgeUsage: 模型兜底审批(judge 通道)的累计 token 用量 + 近 N 天每日序列。
@@ -1561,41 +1561,41 @@ export interface FindingTrafficDetail {
   response: EvidenceBodyPreview;
 }
 
-/** GET /api/update/check —— 当前版本与 GitHub 最新正式版的比较结果。 */
+/** GET /api/update/check —— 현재 버전과 GitHub 최신 정식 버전 비교 결과。 */
 export interface UpdateCheck {
-  /** 当前运行的版本；开发构建为 "dev" 或 git describe 的带后缀形式。 */
+  /** 현재 실행 버전. 개발 빌드의 경우 "dev" 또는 git describe 접미사가 붙은 형식。 */
   current: string;
-  /** 运行形态。docker 下换装只作用于容器可写层，重建容器会退回镜像版本。 */
+  /** 실행 형태。docker 에서 교체하면 컨테이너 쓰기 계층에만 적용되며 다시 생성하면 이미지 버전으로 돌아감。 */
   mode: "docker" | "binary";
   os: string;
   arch: string;
   repo: string;
-  /** 是否存在可回滚的上一版本（artex.old）。 */
+  /** 롤백 가능한 이전 버전 존재 여부（artex.old）。 */
   has_backup: boolean;
-  /** 本次启动时自更新自举的结论（换装失败 / 已回滚等），无事发生时为空。 */
+  /** 이번 시작 시 자체 업데이트 초기 처리 결과(교체 실패 / 롤백 완료 등). 특이 사항이 없으면 빈 값。 */
   boot_notice?: string;
   rolled_back?: boolean;
-  /** 查询 GitHub 失败时给出原因，此时下面的字段都不会有。 */
+  /** 조회 GitHub 실패 시 사유를 제공하며 아래 필드는 없음。 */
   error?: string;
   latest?: string;
   notes?: string;
   html_url?: string;
   published_at?: string;
-  /** 当前平台对应的发布包名，以及该 Release 是否真的带了它。 */
+  /** 현재 플랫폼에 해당하는 릴리스 파일 이름 및 해당 Release 실제로 포함되어 있는지 여부。 */
   asset?: string;
   asset_available?: boolean;
   size?: number;
   has_update?: boolean;
-  /** 双方版本号是否可比较；开发构建为 false，此时禁用一键更新。 */
+  /** 두 버전 비교 가능 여부. 개발 빌드의 경우 false，이 경우 원클릭 업데이트 비활성화。 */
   comparable?: boolean;
-  /** comparable 为 false 时的说明。 */
+  /** comparable 의 경우 false 일 때의 설명。 */
   reason?: string;
 }
 
-/** /api/update/stream 推送的一条更新进度。 */
+/** /api/update/stream 전송된 업데이트 진행 상황。 */
 export interface UpdateProgress {
   phase: "idle" | "downloading" | "verifying" | "extracting" | "staged" | "failed";
-  /** 仅下载阶段有意义（0-100）；其余阶段为 -1。 */
+  /** 다운로드 단계에서만 의미 있음（0-100）；나머지 단계에서는 -1。 */
   percent: number;
   message: string;
   version?: string;
