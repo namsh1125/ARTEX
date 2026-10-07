@@ -120,7 +120,7 @@ export function ConfigField({
   const hint = masked ? (
     <p className="text-muted-foreground flex items-center gap-1 text-xs">
       <CheckIcon className="size-3" />
-      已保存{maskedTail ? `（尾号 ${maskedTail}）` : ""} · 填入新值即覆盖，清空则删除该项
+      저장됨{maskedTail ? `(끝자리 ${maskedTail}）` : ""} · 새 값을 입력하면 덮어쓰며 비우면 해당 항목을 삭제합니다
     </p>
   ) : (
     def.help && <p className="text-muted-foreground text-xs">{def.help}</p>
@@ -141,13 +141,13 @@ export function FilterSummary({ filter }: { filter: NotificationFilter }) {
   if (filter.min_severity) {
     parts.push(SEVERITY_OPTIONS.find((o) => o.value === filter.min_severity)?.label ?? filter.min_severity);
   }
-  if (filter.vulnclass_include?.length) parts.push(`类型含 ${filter.vulnclass_include.length} 词`);
-  if (filter.vulnclass_exclude?.length) parts.push(`排除 ${filter.vulnclass_exclude.length} 词`);
-  if (filter.task_ids?.length) parts.push(`${filter.task_ids.length} 个任务`);
-  if (filter.asset_ids?.length) parts.push(`${filter.asset_ids.length} 个资产`);
-  if (filter.on_status_change) parts.push("含状态变更");
+  if (filter.vulnclass_include?.length) parts.push(`유형에 포함 ${filter.vulnclass_include.length} 단어`);
+  if (filter.vulnclass_exclude?.length) parts.push(`제외 ${filter.vulnclass_exclude.length} 단어`);
+  if (filter.task_ids?.length) parts.push(`${filter.task_ids.length} 개 작업`);
+  if (filter.asset_ids?.length) parts.push(`${filter.asset_ids.length} 개 자산`);
+  if (filter.on_status_change) parts.push("상태 변경 포함");
   if (parts.length === 0) {
-    return <p className="text-muted-foreground text-sm">全部漏洞</p>;
+    return <p className="text-muted-foreground text-sm">전체 취약점</p>;
   }
   return <p className="text-muted-foreground text-sm">{parts.join(" · ")}</p>;
 }
