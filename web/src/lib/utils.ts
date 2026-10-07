@@ -35,7 +35,7 @@ if (typeof document !== "undefined") {
     () => {
       overlayOpenAtLastPointerDown = isRadixOverlayOpenNow();
     },
-    true, // capture:抢在 Radix 冒泡阶段的 pointerdown 处理器之前记录
+    true, // capture:다음보다 먼저 Radix 버블링 단계의 pointerdown 핸들러보다 먼저 기록
   );
 }
 
@@ -98,7 +98,7 @@ export function formatCurrency(
     noDecimals?: boolean;
   },
 ) {
-  const { currency = "USD", locale = "en-US", minimumFractionDigits, maximumFractionDigits, noDecimals } = opts ?? {};
+  const { currency = "USD", locale = "ko-KR", minimumFractionDigits, maximumFractionDigits, noDecimals } = opts ?? {};
 
   const formatOptions: Intl.NumberFormatOptions = {
     style: "currency",
