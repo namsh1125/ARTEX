@@ -25,7 +25,19 @@ test("tokens roundtrip labels and removing one reference preserves its neighbors
   const value = `分析 ${first} 和 ${second}`;
   const selected = selectedMentions(value);
   assert.equal(selected.length, 2);
-  assert.equal(selected[0].label, "漏洞 #12 · 标题（1） 描述");
+  assert.equal(selected[0].label, "취약점 #12 · 标题（1） 描述");
   const next = value.slice(0, selected[0].start) + value.slice(selected[0].start + selected[0].token.length);
   assert.equal(selectedMentions(next)[0].token, second);
+});
+
+// Korean display/search must keep the backend's existing mention wire format.
+test("Korean mentions preserve backend tokens and display localized categories", () => {
+  assert.deepEqual(activeMention("확인 @취약점", 7), { start: 3, end: 7, query: "취약점" });
+  assert.equal(mentionSearch("취").categories[0].kind, "finding");
+  assert.equal(mentionSearch("취약점 SQL 인젝션").query, "SQL 인젝션");
+  assert.equal(mentionSearch("하위 도메인 example.com").kind, "subdomain");
+  assert.equal(mentionSearch("finding SQL").query, "SQL");
+  const token = mentionToken({ kind: "finding", id: 12, label: "검증 결과" });
+  assert.equal(token, "@[漏洞#12 검증 결과]");
+  assert.equal(selectedMentions(token)[0].label, "취약점 #12 · 검증 결과");
 });
