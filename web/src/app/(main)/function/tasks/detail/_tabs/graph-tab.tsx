@@ -16,7 +16,7 @@ export function GraphTab({ taskId }: { taskId: string }) {
 
   React.useEffect(() => {
     let cancelled = false;
-    sigRef.current = ""; // 换任务:强制下一次刷新
+    sigRef.current = ""; // 작업 전환:다음 새로 고침 강제 실행
     const load = () => {
       api
         .explorationGraph(taskId)
@@ -28,7 +28,7 @@ export function GraphTab({ taskId }: { taskId: string }) {
             ns.map((n) => [n.id, n.type, n.state, n.priority, n.payload]),
             es.map((e) => [e.src, e.dst, e.rel]),
           ]);
-          if (sig === sigRef.current) return; // 无变化 → 不重建
+          if (sig === sigRef.current) return; // 변경 없음 → 다시 생성하지 않음
           sigRef.current = sig;
           setNodes(ns);
           setEdges(es);
