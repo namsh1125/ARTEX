@@ -128,7 +128,7 @@ export async function http<T>(path: string, init?: RequestInit): Promise<T> {
       document.cookie = "artex_token=; path=/; max-age=0";
       window.location.href = "/login";
     }
-    throw new Error("未授权");
+    throw new Error("권한 없음");
   }
   if (!r.ok) {
     const fallback = `${init?.method ?? "GET"} ${path}: ${r.status}`;
@@ -165,25 +165,25 @@ export async function http<T>(path: string, init?: RequestInit): Promise<T> {
 // Token is appended as ?token= because SSE can't carry cookies cross-origin.
 // mockReport returns a canned Markdown report for the demo.
 function mockReport(_task?: string): string {
-  return `# ARTEX 渗透测试报告 — Acme Corp
+  return `# ARTEX 침투 테스트 보고서 — Acme Corp
 
-## 概览
-- 范围：acme.com（含 www / admin / api / shop / vpn 子域）
-- 已确认发现：6 项（高危 3 · 中危 3 · 低危 2）
-- 引擎模式：exploring
+## 개요
+- 범위: acme.com(www / admin / api / shop / vpn 하위 도메인 포함)
+- 확인된 발견 사항: 6 건(높음 3 · 중간 3 · 낮음 2)
+- 엔진 모드: exploring
 
-## 关键发现
-1. **[高] 后台默认口令** admin.acme.com admin/admin123 → 可完全接管后台。
-2. **[高] SQL 注入** www.acme.com/search?q= → 可读取 acme_prod 库。
-3. **[高] IDOR** api.acme.com/v1/orders?id= → 可越权读取他人订单（含手机号/地址）。
-4. **[中] 反射型 XSS**、**暴露 .git 源码**、**登录无速率限制**。
+## 주요 발견 사항
+1. **[높음] 관리자 페이지 기본 비밀번호** admin.acme.com admin/admin123 → 관리자 페이지 전체 제어 가능.
+2. **[높음] SQL 인젝션** www.acme.com/search?q= → acme_prod 데이터베이스 읽기 가능.
+3. **[높음] IDOR** api.acme.com/v1/orders?id= → 타인의 주문에 무단 접근 가능(전화번호·주소 포함).
+4. **[중간] 반사형 XSS**、**노출 .git 소스 코드**、**로그인 요청 제한 없음**.
 
-## 建议
-- 后台强制改密 + 启用 MFA、封禁默认口令。
-- search 接口参数化查询、输出编码。
-- API 增加对象级授权校验（IDOR）、更换强 JWT 密钥。
+## 권고 사항
+- 관리자 페이지 비밀번호 변경 강제, MFA 활성화, 기본 비밀번호 금지.
+- search 인터페이스의 매개변수화 쿼리 및 출력 인코딩.
+- API 객체 수준 권한 검사 추가(IDOR), 강력한 JWT 키로 교체.
 
-> （demo）本报告由 mock 数据生成，仅用于界面演示。`;
+> (데모) 이 보고서는 모의 데이터로 생성한 화면 시연용 문서입니다.`;
 }
 
 export function sseUrl(path: string): string {
@@ -271,9 +271,9 @@ export const api = {
       company_ids: input.companyIds ?? [],
       timeout_seconds: input.timeoutSeconds ?? 0,
       seed_first_intent: input.seedFirstIntent ?? false,
-      plan_heartbeat_seconds: input.planHeartbeatSeconds ?? 0, // 0 = 后端归一到默认 600(10min)
-      coverage_enabled: input.coverageEnabled ?? true, // 默认开;false=关闭资产覆盖度功能
-      intercept_rules: input.interceptRules ?? [], // 任务级资产拦截规则
+      plan_heartbeat_seconds: input.planHeartbeatSeconds ?? 0, // 0 = 백엔드에서 기본값으로 정규화 600(10min)
+      coverage_enabled: input.coverageEnabled ?? true, // 기본 활성화;false=자산 커버리지 기능 끄기
+      intercept_rules: input.interceptRules ?? [], // 작업별 자산 차단 규칙
     }),
   taskCategories: () => get<{ categories: TaskCategory[] }>("/task-categories").then((r) => arr(r.categories)),
   updateTask: (id: string, input: { name?: string; pinned?: boolean }) => patch<Task>(`/tasks/${id}`, input),
@@ -369,7 +369,7 @@ export const api = {
   // 资产测试覆盖度(粗估，供参考)：范围内资产被 fact 碰过的占比 + 按类型的 总数/已测。
   taskCoverage: (id: string) =>
     get<{
-      enabled: boolean; // 资产覆盖度功能是否开启；false 时其余字段为零值
+      enabled: boolean; // 자산 커버리지 기능 활성화 여부；false 일 때 나머지 필드는 0값
       scope_rows: number;
       denominator: number;
       tested: number;
@@ -448,19 +448,19 @@ export const api = {
       headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}) },
       body: fd,
     });
-    if (!r.ok) throw new Error(`上传失败: ${r.status}`);
+    if (!r.ok) throw new Error(`업로드 실패: ${r.status}`);
     return r.json() as Promise<{ uploaded: number }>;
   },
   workspaceDownload: async (path: string) => {
     let blob: Blob;
     if (MOCK) {
-      blob = new Blob([`（demo）${path} 的下载内容示例。`], { type: "text/plain" });
+      blob = new Blob([`（demo）${path} 다운로드 내용 예시.`], { type: "text/plain" });
     } else {
       const token = getToken();
       const r = await fetch(`/api/workspace/download?path=${encodeURIComponent(path)}`, {
         headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}) },
       });
-      if (!r.ok) throw new Error(`下载失败: ${r.status}`);
+      if (!r.ok) throw new Error(`다운로드 실패: ${r.status}`);
       blob = await r.blob();
     }
     const objUrl = URL.createObjectURL(blob);
@@ -649,8 +649,8 @@ export const api = {
       { headers: token ? { Authorization: `Bearer ${token}` } : {} },
     );
     if (!response.ok) {
-      const error = await response.json().catch(() => ({ error: "下载失败" }));
-      throw new Error(error.error ?? "下载失败");
+      const error = await response.json().catch(() => ({ error: "다운로드 실패" }));
+      throw new Error(error.error ?? "다운로드 실패");
     }
     const blob = await response.blob();
     const url = URL.createObjectURL(blob);
@@ -899,7 +899,7 @@ export const api = {
       headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}) },
       body: fd,
     });
-    if (!r.ok) throw new Error(`上传失败: ${r.status} ${await r.text()}`);
+    if (!r.ok) throw new Error(`업로드 실패: ${r.status} ${await r.text()}`);
     return r.json() as Promise<{ attachments: ChatAttachment[] }>;
   },
   stopChat: (taskId: string) => post<{ status: string }>(`/tasks/${taskId}/chat/stop`, {}),
@@ -939,8 +939,8 @@ export const api = {
     thinking_type = "",
     reasoning_effort = "",
     profile_id?: number,
-    streaming = true, // 用该配置真实的收发模式来测，别让"流式能通、非流式不通"漏到会话里
-    session_header_key = "", // 非空=测试请求也带该自定义会话头（值为一次性 session id）
+    streaming = true, // 이 설정의 실제 송수신 모드로 테스트하여 다음 문제가"스트리밍만 되고 비스트리밍은 안 됨"세션에서 발생하지 않도록 함
+    session_header_key = "", // 비어 있지 않음=테스트 요청에도 사용자 지정 세션 헤더 포함(일회용 값 session id）
   ) =>
     // reply = 模型实际回复(已截断);一个字都不回的配置后端直接判失败
     post<{ ok: boolean; error?: string; latency_ms?: number; model?: string; reply?: string }>("/llm/test", {
@@ -967,15 +967,15 @@ export const api = {
     rate_per_second?: number;
     rate_per_minute?: number;
     context_window_k?: number;
-    thinking_type?: string; // ""(不发送)|"disabled"|"enabled"
-    reasoning_effort?: string; // ""(不发送)|"low"|"medium"|"high"|"xhigh"|"max"
-    priority?: number; // 轮询顺位，越大越先用
-    pool_exclude?: boolean; // true=不作为故障转移目标
-    streaming?: boolean; // true(默认)=流式 | false=非流式
-    max_tokens?: number; // 单次回复输出上限；0=不发送，由服务端默认值决定
-    max_tokens_field?: string; // ""=max_tokens(默认) | "max_completion_tokens"（仅 openai 格式）
-    session_header_key?: string; // 非空=每次请求带该 HTTP 头，头值=当前会话 session id；""=不发送
-    retry?: LLMRetryOverride; // 本配置的重试覆盖；各项留 0 = 跟随全局重试策略
+    thinking_type?: string; // ""(전송하지 않음)|"disabled"|"enabled"
+    reasoning_effort?: string; // ""(전송하지 않음)|"low"|"medium"|"high"|"xhigh"|"max"
+    priority?: number; // 순환 선택 우선순위, 큰 값 우선
+    pool_exclude?: boolean; // true=장애 조치 대상으로 사용하지 않음
+    streaming?: boolean; // true(기본값)=스트리밍 | false=비스트리밍
+    max_tokens?: number; // 응답당 출력 한도；0=전송하지 않고 서버 기본값 사용
+    max_tokens_field?: string; // ""=max_tokens(기본값) | "max_completion_tokens"（전용 openai 형식）
+    session_header_key?: string; // 비어 있지 않음=요청마다 해당 항목 포함: HTTP 헤더, 값:=현재 세션 session id；""=전송하지 않음
+    retry?: LLMRetryOverride; // 이 설정의 재시도 재정의. 각 항목을 비우면 0 = 전역 재시도 정책 사용
   }) => post<{ id: number }>("/llm/profiles", p),
   deleteLLMProfile: (id: string) => del<{ deleted: number }>(`/llm/profiles/${id}`),
   activateLLMProfile: (id: string) => post<{ ok: boolean }>("/llm/profiles/active", { id: Number(id) }),
@@ -1063,7 +1063,7 @@ export const api = {
   saveAgentConfig: (
     key: string,
     patch: {
-      llm_profile_id?: number | null; // number=绑定；null=解绑(跟随任务/全局)；缺省=不动
+      llm_profile_id?: number | null; // number=연결；null=연결 해제(작업 설정 사용/전역)；기본=변경하지 않음
       max_turns?: number;
       run_seconds?: number;
       web_search?: boolean;
@@ -1160,7 +1160,7 @@ export const api = {
       headers: token ? { Authorization: `Bearer ${token}` } : {},
     });
     const body = await r.json().catch(() => ({}));
-    if (!r.ok) throw new Error(body?.error || `上传失败(${r.status})`);
+    if (!r.ok) throw new Error(body?.error || `업로드 실패(${r.status})`);
     return body;
   },
   deleteSkill: (name: string) => del<{ deleted: string }>(`/skills/${name}`),

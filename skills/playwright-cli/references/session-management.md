@@ -1,10 +1,10 @@
-# Browser Session Management
+# 브라우저 세션 관리
 
-Run multiple isolated browser sessions concurrently with state persistence.
+상태를 유지하면서 서로 격리된 여러 브라우저 세션을 동시에 실행합니다.
 
-## Named Browser Sessions
+## 이름이 있는 브라우저 세션
 
-Use `-s` flag to isolate browser contexts:
+`-s` 플래그로 브라우저 컨텍스트를 격리합니다.
 
 ```bash
 # Browser 1: Authentication flow
@@ -18,17 +18,17 @@ playwright-cli -s=auth fill e1 "user@example.com"
 playwright-cli -s=public snapshot
 ```
 
-## Browser Session Isolation Properties
+## 브라우저 세션의 격리 속성
 
-Each browser session has independent:
-- Cookies
+각 브라우저 세션은 다음 항목을 독립적으로 가집니다.
+- 쿠키
 - LocalStorage / SessionStorage
 - IndexedDB
-- Cache
-- Browsing history
-- Open tabs
+- 캐시
+- 방문 기록
+- 열린 탭
 
-## Browser Session Commands
+## 브라우저 세션 명령
 
 ```bash
 # List all browser sessions
@@ -49,18 +49,18 @@ playwright-cli delete-data                # delete default browser data
 playwright-cli -s=mysession delete-data   # delete named browser data
 ```
 
-## Environment Variable
+## 환경변수
 
-Set a default browser session name via environment variable:
+환경변수로 기본 브라우저 세션 이름을 설정합니다.
 
 ```bash
 export PLAYWRIGHT_CLI_SESSION="mysession"
 playwright-cli open example.com  # Uses "mysession" automatically
 ```
 
-## Common Patterns
+## 자주 사용하는 패턴
 
-### Concurrent Scraping
+### 동시 스크래핑
 
 ```bash
 #!/bin/bash
@@ -81,7 +81,7 @@ playwright-cli -s=site3 snapshot
 playwright-cli close-all
 ```
 
-### A/B Testing Sessions
+### A/B 테스트 세션
 
 ```bash
 # Test different user experiences
@@ -93,9 +93,9 @@ playwright-cli -s=variant-a screenshot
 playwright-cli -s=variant-b screenshot
 ```
 
-### Persistent Profile
+### 영구 프로필
 
-By default, browser profile is kept in memory only. Use `--persistent` flag on `open` to persist the browser profile to disk:
+기본적으로 브라우저 프로필은 메모리에만 보관됩니다. 디스크에 저장하려면 `open`에 `--persistent` 플래그를 사용합니다.
 
 ```bash
 # Use persistent profile (auto-generated location)
@@ -105,13 +105,13 @@ playwright-cli open https://example.com --persistent
 playwright-cli open https://example.com --profile=/path/to/profile
 ```
 
-## Attaching to a Running Browser
+## 실행 중인 브라우저 연결
 
-Use `attach` to connect to a browser that is already running, instead of launching a new one.
+새 브라우저를 실행하는 대신 `attach`로 이미 실행 중인 브라우저에 연결합니다.
 
-### Attach by channel name
+### 채널 이름으로 연결
 
-Connect to a running Chrome or Edge instance by its channel name. The browser must have remote debugging enabled — navigate to `chrome://inspect/#remote-debugging` in the target browser and check "Allow remote debugging for this browser instance".
+채널 이름으로 실행 중인 Chrome 또는 Edge에 연결합니다. 원격 디버깅이 활성화되어 있어야 합니다. 대상 브라우저에서 `chrome://inspect/#remote-debugging`으로 이동하여 ‘Allow remote debugging for this browser instance’를 선택하세요.
 
 ```bash
 # Attach to Chrome
@@ -127,29 +127,29 @@ playwright-cli attach --cdp=msedge
 playwright-cli attach --cdp=msedge-dev
 ```
 
-Supported channels: `chrome`, `chrome-beta`, `chrome-dev`, `chrome-canary`, `msedge`, `msedge-beta`, `msedge-dev`, `msedge-canary`.
+지원 채널: `chrome`, `chrome-beta`, `chrome-dev`, `chrome-canary`, `msedge`, `msedge-beta`, `msedge-dev`, `msedge-canary`.
 
-When `--session` is not provided, the session is named after the channel (e.g. `--cdp=msedge` creates a session called `msedge`), so parallel attaches to Chrome and Edge don't collide on `default`. Pass `--session=<name>` to override.
+`--session`을 생략하면 채널 이름을 세션 이름으로 사용합니다(예: `--cdp=msedge`는 `msedge` 세션 생성). 따라서 Chrome과 Edge에 동시에 연결해도 `default`에서 충돌하지 않습니다. 변경하려면 `--session=<name>`을 전달하세요.
 
-### Attach via CDP endpoint
+### CDP 엔드포인트로 연결
 
-Connect to a browser that exposes a Chrome DevTools Protocol endpoint:
+Chrome DevTools Protocol 엔드포인트를 제공하는 브라우저에 연결합니다.
 
 ```bash
 playwright-cli attach --cdp=http://localhost:9222
 ```
 
-### Attach via browser extension
+### 브라우저 확장 프로그램으로 연결
 
-Connect to a browser with the Playwright extension installed:
+Playwright 확장 프로그램이 설치된 브라우저에 연결합니다.
 
 ```bash
 playwright-cli attach --extension
 ```
 
-### Detach
+### 연결 해제
 
-Tear down an attached session without affecting the external browser:
+외부 브라우저에 영향을 주지 않고 연결된 세션을 종료합니다.
 
 ```bash
 # Detach the default attached session
@@ -159,11 +159,11 @@ playwright-cli detach
 playwright-cli -s=msedge detach
 ```
 
-`detach` only works on sessions created via `attach`. For sessions created via `open`, use `close`.
+`detach`는 `attach`로 만든 세션에서만 작동합니다. `open`으로 만든 세션에는 `close`를 사용하세요.
 
-## Default Browser Session
+## 기본 브라우저 세션
 
-When `-s` is omitted, commands use the default browser session:
+`-s`를 생략하면 기본 브라우저 세션을 사용합니다.
 
 ```bash
 # These use the same default browser session
@@ -172,9 +172,9 @@ playwright-cli snapshot
 playwright-cli close  # Stops default browser
 ```
 
-## Browser Session Configuration
+## 브라우저 세션 설정
 
-Configure a browser session with specific settings when opening:
+브라우저 세션을 열 때 설정을 지정합니다.
 
 ```bash
 # Open with config file
@@ -190,9 +190,9 @@ playwright-cli open https://example.com --headed
 playwright-cli open https://example.com --persistent
 ```
 
-## Best Practices
+## 권장 사항
 
-### 1. Name Browser Sessions Semantically
+### 1. 의미 있는 브라우저 세션 이름 사용
 
 ```bash
 # GOOD: Clear purpose
@@ -203,7 +203,7 @@ playwright-cli -s=docs-scrape open https://docs.example.com
 playwright-cli -s=s1 open https://github.com
 ```
 
-### 2. Always Clean Up
+### 2. 작업 후 항상 정리
 
 ```bash
 # Stop browsers when done
@@ -217,7 +217,7 @@ playwright-cli close-all
 playwright-cli kill-all
 ```
 
-### 3. Delete Stale Browser Data
+### 3. 오래된 브라우저 데이터 삭제
 
 ```bash
 # Remove old browser data to free disk space

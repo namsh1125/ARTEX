@@ -1,5 +1,5 @@
 const TOKEN_KEY = "artex_token";
-const COOKIE_MAX_AGE = 7 * 24 * 60 * 60; // 7 天（秒）
+const COOKIE_MAX_AGE = 7 * 24 * 60 * 60; // 7 일(초）
 
 export interface CurrentUser {
   id: string;

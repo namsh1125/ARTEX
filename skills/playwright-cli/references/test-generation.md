@@ -1,19 +1,19 @@
-# Test generation (plan → generate → heal)
+# 테스트 생성(plan → generate → heal)
 
-End-to-end workflow for authoring and maintaining Playwright tests with `playwright-cli`. Every `playwright-cli` action emits the equivalent Playwright TypeScript, and that generated code is the raw material for every test. The sections below can be used independently:
+`playwright-cli`로 Playwright 테스트를 작성하고 유지하는 전체 작업 흐름입니다. 모든 `playwright-cli` 작업은 대응하는 Playwright TypeScript를 출력하며 이 코드가 테스트의 기초가 됩니다. 아래 절은 각각 독립적으로 사용할 수 있습니다.
 
-- **How generation works** — the core mechanic everything else relies on: actions become TypeScript, plus how to add assertions.
-- **Plan** — explore the app, produce a spec file describing what to test.
-- **Generate** — turn a spec into Playwright test files. Update the spec if it's vague or stale.
-- **Heal** — diagnose failing tests, fix the code, reconcile the spec with reality.
+- **생성 원리**: 작업을 TypeScript로 바꾸고 검증문을 추가하는 공통 원리
+- **계획(Plan)**: 앱을 탐색하고 테스트할 내용을 명세 파일로 작성
+- **생성(Generate)**: 명세를 Playwright 테스트 파일로 변환. 모호하거나 오래된 명세는 갱신
+- **수정(Heal)**: 실패한 테스트를 진단하고 코드를 수정하며 명세를 실제 동작과 일치시킴
 
-Plan / generate / heal lean on the same mechanic: run `npx playwright test --debug=cli` in the background, then `playwright-cli attach tw-XXXX` to drive the paused page interactively. See [playwright-tests.md](playwright-tests.md) for the debug/attach mechanics.
+plan / generate / heal은 같은 방식을 사용합니다. `npx playwright test --debug=cli`를 백그라운드에서 실행한 다음 `playwright-cli attach tw-XXXX`로 일시 정지된 페이지를 조작합니다. 디버깅과 연결 방식은 [playwright-tests.md](playwright-tests.md)를 참조하세요.
 
 ---
 
-## 0. How generation works
+## 0. 생성 원리
 
-Every action you perform with `playwright-cli` generates corresponding Playwright TypeScript code. This code appears in the output and can be copied directly into your test files.
+`playwright-cli`로 수행한 각 작업은 대응하는 Playwright TypeScript 코드를 생성합니다. 이 코드는 출력에 표시되며 테스트 파일에 바로 복사할 수 있습니다.
 
 ```bash
 # Start a session
@@ -37,9 +37,9 @@ playwright-cli click e3
 # await page.getByRole('button', { name: 'Sign In' }).click();
 ```
 
-### Building a test file
+### 테스트 파일 구성
 
-Collect the generated code into a Playwright test:
+생성된 코드를 모아 Playwright 테스트를 만듭니다.
 
 ```typescript
 import { test, expect } from '@playwright/test';
@@ -56,9 +56,9 @@ test('login flow', async ({ page }) => {
 });
 ```
 
-### Use semantic locators
+### 의미 기반 로케이터 사용
 
-The generated code uses role-based locators when possible, which are more resilient:
+생성 코드는 가능하면 변경에 더 강한 역할 기반 로케이터를 사용합니다.
 
 ```typescript
 // Generated (good - semantic)
@@ -68,9 +68,9 @@ await page.getByRole('button', { name: 'Submit' }).click();
 await page.locator('#submit-btn').click();
 ```
 
-### Explore before recording
+### 기록하기 전에 탐색
 
-Take snapshots to understand the page structure before recording actions:
+작업을 기록하기 전에 스냅샷으로 페이지 구조를 파악합니다.
 
 ```bash
 playwright-cli open https://example.com
@@ -79,21 +79,21 @@ playwright-cli snapshot
 playwright-cli click e5
 ```
 
-### Add assertions manually
+### 검증문 직접 추가
 
-Generated code captures actions but not assertions. Add expectations in your test using one of the recommended matchers:
+생성된 코드는 작업만 기록하며 검증문은 포함하지 않습니다. 권장 매처를 사용하여 테스트에 기대 조건을 추가하세요.
 
-- `toBeVisible()` — element is rendered and visible
-- `toHaveText(text)` — element text content matches
-- `toHaveValue(value) / toBeEmpty()` — input/select value matches
-- `toBeChecked() / toBeUnchecked()` — checkbox state matches
-- `toMatchAriaSnapshot(snapshot)` — page (or locator) matches a partial accessibility snapshot
+- `toBeVisible()`: 요소가 렌더링되어 보이는지 확인
+- `toHaveText(text)`: 요소 텍스트 일치 확인
+- `toHaveValue(value) / toBeEmpty()`: input/select 값 확인
+- `toBeChecked() / toBeUnchecked()`: 체크박스 상태 확인
+- `toMatchAriaSnapshot(snapshot)`: 페이지 또는 로케이터가 부분 접근성 스냅샷과 일치하는지 확인
 
-Use `playwright-cli generate-locator <target>` to produce the locator expression for the assertion, and the snapshot/eval commands to capture the expected value.
+`playwright-cli generate-locator <target>`으로 검증에 사용할 로케이터 표현식을 생성하고 snapshot/eval 명령으로 기대 값을 확인합니다.
 
-When asserting text content, make sure that generated locator does not contain text from the element itself. `getByTestId()` or `getByLabel()` usually work well with asserting text. When locator is text-based, prefer `toBeVisible()` instead.
+텍스트 내용을 검증할 때 생성된 로케이터에 요소 자체의 텍스트가 들어가지 않도록 하세요. `getByTestId()`나 `getByLabel()`이 보통 적합합니다. 텍스트 기반 로케이터라면 `toBeVisible()`을 권장합니다.
 
-Snapshot to be matched does not have to contain all the information - only capture what's necessary for the assertion. You can use regular expressions for unstable values.
+비교할 스냅샷은 모든 정보를 포함할 필요 없이 검증에 필요한 내용만 담으면 됩니다. 변하는 값에는 정규식을 사용할 수 있습니다.
 
 ```bash
 # Get a stable locator for an element ref to use in the assertion
@@ -139,13 +139,13 @@ await expect(page.getByRole('navigation')).toMatchAriaSnapshot(`
 
 ---
 
-## 1. Planning
+## 1. 계획
 
-Goal: produce a spec file (e.g. `specs/<feature>.plan.md`) that enumerates the scenarios to test. **Always** write the spec to a file.
+목표: 테스트할 시나리오를 나열하는 명세 파일(예: `specs/<feature>.plan.md`)을 만듭니다. 명세는 **항상 파일로 저장**합니다.
 
-### 1.1 Prerequisite: workspace
+### 1.1 사전 조건: 작업 공간
 
-Check the workspace has Playwright installed before anything else:
+먼저 작업 공간에 Playwright가 설치되어 있는지 확인합니다.
 
 ```bash
 # Either of these confirms a workspace:
@@ -153,17 +153,17 @@ test -f playwright.config.ts || test -f playwright.config.js
 npx --no-install playwright --version
 ```
 
-If there is no Playwright install, bootstrap one and let the user pick the defaults:
+설치되어 있지 않으면 초기 설정을 진행하고 사용자가 기본값을 선택하게 합니다.
 
 ```bash
 npm init playwright@latest
 ```
 
-### 1.2 Prerequisite: seed test
+### 1.2 사전 조건: 초기 상태 테스트
 
-A **seed test** is a minimal test that lands the page in the state every scenario starts from: navigation to the app, any required login, feature flags, etc. Scenarios assume a fresh start *after* the seed. `--debug=cli` pauses *inside* this test, so the seed is where every planning and generation session begins.
+**초기 상태 테스트(seed test)**는 모든 시나리오의 시작 상태를 만드는 최소 테스트입니다. 앱 탐색, 필요한 로그인, 기능 플래그 등을 설정합니다. 시나리오는 이 테스트가 끝난 직후의 새로운 상태에서 시작합니다. `--debug=cli`는 이 테스트 **안에서** 멈추므로 모든 계획·생성 세션의 출발점입니다.
 
-Minimum viable seed:
+최소 초기 상태 테스트:
 
 ```ts
 // tests/seed.spec.ts
@@ -174,7 +174,7 @@ test('seed', async ({ page }) => {
 });
 ```
 
-Preferred — push navigation into a fixture so scenario tests reuse it:
+권장 방식: 탐색을 fixture로 옮겨 시나리오 테스트에서 재사용합니다.
 
 ```ts
 // tests/fixtures.ts
@@ -198,11 +198,11 @@ test('seed', async ({ page }) => {
 });
 ```
 
-If no seed exists, create one that at least navigates to the app.
+초기 상태 테스트가 없으면 최소한 앱으로 이동하는 테스트를 만듭니다.
 
-### 1.3 Explore the app
+### 1.3 앱 탐색
 
-Launch the app via the seed in the background and attach:
+초기 상태 테스트로 앱을 백그라운드에서 실행한 뒤 연결합니다.
 
 ```bash
 PLAYWRIGHT_HTML_OPEN=never npx playwright test tests/seed.spec.ts --debug=cli
@@ -210,7 +210,7 @@ PLAYWRIGHT_HTML_OPEN=never npx playwright test tests/seed.spec.ts --debug=cli
 playwright-cli attach tw-XXXX
 ```
 
-Resume so the seed runs, then probe the app:
+실행을 재개하여 초기 설정을 마치고 앱을 조사합니다.
 
 ```bash
 playwright-cli resume                   # resume so that seed test runs fully
@@ -220,20 +220,20 @@ playwright-cli eval "location.href"     # read URL / state
 playwright-cli show --annotate          # ask the user to point at something
 ```
 
-Map out:
+다음을 파악합니다.
 
-- Interactive surfaces (forms, buttons, lists, filters, modals).
-- Primary user journeys end-to-end.
-- Edge cases: empty states, validation errors, very long input, boundary values.
-- Persistence: reload, local/session storage, URL fragments.
-- Navigation: which controls change the URL, back/forward behaviour.
+- 상호작용 요소: 폼, 버튼, 목록, 필터, 모달
+- 주요 사용자 작업의 처음부터 끝까지의 흐름
+- 경계 사례: 빈 상태, 검증 오류, 매우 긴 입력, 경계 값
+- 상태 유지: 새로고침, local/session storage, URL 프래그먼트
+- 탐색: URL을 바꾸는 컨트롤과 뒤로/앞으로 동작
 
-**Important**: Do not just open the app url with playwright-cli, always go through the test to capture any custom setup done there.
-**Important**: Stop the background test when done exploring.
+**중요**: playwright-cli로 앱 URL만 열지 마세요. 테스트의 사용자 정의 설정을 적용하려면 반드시 테스트를 거쳐야 합니다.
+**중요**: 탐색이 끝나면 백그라운드 테스트를 중지합니다.
 
-### 1.4 Write the spec file
+### 1.4 명세 파일 작성
 
-Save under `specs/<feature>.plan.md`. Use this structure:
+`specs/<feature>.plan.md`에 다음 구조로 저장합니다.
 
 ```markdown
 # <Feature> Test Plan
@@ -268,29 +268,29 @@ Save under `specs/<feature>.plan.md`. Use this structure:
 ...
 ```
 
-Guidelines:
+작성 지침:
 
-- Each scenario is independent and starts from the seed's fresh state — never chain scenarios.
-- Scenario names are kebab-case and match the test file name (`should-add-single-todo` → `should-add-single-todo.spec.ts`).
-- Cover happy path, edge cases, validation, negative flows, persistence.
-- Write steps at the user level ("Type 'Buy milk' into the input"), not the API level ("call `fill`").
-- Put observable outcomes in `- expect:` bullets; each becomes an assertion during generation.
+- 각 시나리오는 독립적이며 초기 상태 테스트 직후의 새 상태에서 시작합니다. 시나리오를 이어 붙이지 마세요.
+- 시나리오 이름은 kebab-case이며 테스트 파일 이름과 일치해야 합니다(`should-add-single-todo` → `should-add-single-todo.spec.ts`).
+- 정상 흐름, 경계 사례, 검증, 실패 흐름, 상태 유지를 포함합니다.
+- API 수준(‘`fill` 호출’)이 아니라 사용자 수준(‘입력란에 Buy milk 입력’)으로 단계를 씁니다.
+- 관찰 가능한 결과는 `- expect:` 항목에 씁니다. 생성 시 각 항목이 검증문이 됩니다.
 
 ---
 
-## 2. Generate
+## 2. 생성
 
-Goal: take a spec file and produce Playwright test files. Optionally update the spec if it has drifted.
+목표: 명세 파일을 Playwright 테스트 파일로 변환합니다. 실제 동작과 달라졌다면 명세도 갱신합니다.
 
-### 2.1 Inputs
+### 2.1 입력
 
-- **Spec file**, e.g. `specs/basic-operations.plan.md`.
-- **Target**: either a single scenario (e.g. `1.2`), a whole group (`1`), or all.
-- **Seed file**, read from the `**Seed:**` line of the scenario's group.
+- **명세 파일**: 예를 들어 `specs/basic-operations.plan.md`
+- **대상**: 단일 시나리오(예: `1.2`), 그룹 전체(`1`), 또는 모두
+- **초기 상태 파일**: 시나리오 그룹의 `**Seed:**` 줄에서 확인
 
-### 2.2 Generate one scenario
+### 2.2 시나리오 하나 생성
 
-For each target scenario, in sequence (never in parallel — scenarios share the seed session):
+대상 시나리오마다 순서대로 수행합니다(같은 초기 상태 세션을 공유하므로 병렬 실행 금지).
 
 ```bash
 PLAYWRIGHT_HTML_OPEN=never npx playwright test <seed-file> --debug=cli   # background
@@ -298,11 +298,11 @@ playwright-cli attach tw-XXXX
 # resume
 ```
 
-**Do not** just open the app url with playwright-cli, always go through the test to capture any custom setup done there.
+playwright-cli로 앱 URL만 열지 **마세요**. 사용자 정의 설정을 적용하려면 반드시 테스트를 거쳐야 합니다.
 
-Walk the scenario's `Steps:` one by one with `playwright-cli`, treating the spec as the plan and the live app as the source of truth. If a step is vague ("click the button" — which button?), references an element that no longer exists, or contradicts the app's actual behaviour, use your judgement: update the spec to match what the app really does, then keep going. Editing the spec mid-generation is expected.
+명세를 계획으로, 실행 중인 앱을 실제 동작의 기준으로 삼아 `Steps:`를 `playwright-cli`로 하나씩 수행합니다. 단계가 모호하거나(‘버튼 클릭’인데 어떤 버튼인지 불명확), 사라진 요소를 가리키거나, 실제 동작과 충돌하면 판단하여 명세를 갱신하고 계속 진행합니다. 생성 도중 명세를 수정하는 것은 정상입니다.
 
-Every action prints the equivalent Playwright TypeScript (see [How generation works](#0-how-generation-works)):
+각 작업은 대응하는 Playwright TypeScript를 출력합니다([생성 원리](#0-생성-원리) 참조).
 
 ```bash
 playwright-cli snapshot                         # find refs
@@ -311,9 +311,9 @@ playwright-cli press Enter
 playwright-cli click e7
 ```
 
-For each `- expect:` bullet, add an explicit assertion. See [How generation works](#0-how-generation-works) for details.
+각 `- expect:` 항목에 명시적인 검증문을 추가합니다. 자세한 내용은 [생성 원리](#0-생성-원리)를 참조하세요.
 
-Collect the generated code and write the test file at the path given in the spec:
+생성된 코드를 모아 명세에 지정된 경로에 테스트 파일을 작성합니다.
 
 ```ts
 // spec: specs/basic-operations.plan.md
@@ -339,45 +339,45 @@ test.describe('Signing in and out', () => {
 });
 ```
 
-Rules:
+규칙:
 
-- **One test per file.** File path, describe name, and test name come verbatim from the spec (minus the ordinal).
-- Prefix each numbered step with a `// N. <step text>` comment before its actions.
-- Use the describe group name verbatim from the spec (no `1.` ordinal).
-- Import from `./fixtures` if the project has one; otherwise `@playwright/test`.
-- **Important**: close the CLI session and stop the background test before moving to the next scenario.
+- **파일 하나에 테스트 하나.** 파일 경로, describe 이름, 테스트 이름은 번호를 제외하고 명세 그대로 사용합니다.
+- 각 번호가 있는 단계의 작업 앞에 `// N. <단계 설명>` 주석을 붙입니다.
+- describe 그룹 이름은 명세 그대로 사용하되 `1.` 같은 번호는 제외합니다.
+- 프로젝트에 fixture가 있으면 `./fixtures`에서, 없으면 `@playwright/test`에서 가져옵니다.
+- **중요**: 다음 시나리오 전에 CLI 세션을 닫고 백그라운드 테스트를 중지합니다.
 
-### 2.3 Generate multiple scenarios
+### 2.3 여러 시나리오 생성
 
-Loop 2.2 over the targeted scenarios one at a time, restarting the seed between each so every test starts from a clean page. This is safe to parallelise due to unique generated session names - just make sure each test run is stopped.
+대상 시나리오에 2.2를 하나씩 반복하고, 매번 초기 상태 테스트를 재시작하여 깨끗한 페이지에서 시작합니다. 생성된 세션 이름은 고유하므로 독립된 실행끼리는 병렬화할 수 있지만 각 테스트 실행을 반드시 중지해야 합니다.
 
-### 2.4 Run generated tests
+### 2.4 생성된 테스트 실행
 
-After generation, run the new tests once:
+생성 후 새 테스트를 한 번 실행합니다.
 
 ```bash
 PLAYWRIGHT_HTML_OPEN=never npx playwright test tests/<group>/<scenario>.spec.ts
 ```
 
-Any failure goes to Section 3.
+실패하면 3절로 진행합니다.
 
 ---
 
-## 3. Heal
+## 3. 수정
 
-Goal: fix failing tests, and update the spec if the app's intended behaviour changed.
+목표: 실패한 테스트를 고치고 앱의 의도된 동작이 바뀌었다면 명세도 갱신합니다.
 
-### 3.1 Find failing tests
+### 3.1 실패한 테스트 찾기
 
 ```bash
 PLAYWRIGHT_HTML_OPEN=never npx playwright test
 ```
 
-Record the list of failing `<file>:<line>` entries and process them one at a time. Do not attempt parallel fixes — shared state and the single CLI session make that fragile.
+실패한 `<file>:<line>` 목록을 기록하고 하나씩 처리합니다. 공유 상태와 단일 CLI 세션 때문에 불안정해질 수 있으므로 병렬 수정하지 마세요.
 
-### 3.2 Debug one failure
+### 3.2 실패 하나 디버깅
 
-Run the single failing test in debug mode in the background, then attach:
+실패한 테스트 하나를 백그라운드 디버그 모드로 실행하고 연결합니다.
 
 ```bash
 PLAYWRIGHT_HTML_OPEN=never npx playwright test tests/<group>/<scenario>.spec.ts:<line> --debug=cli
@@ -385,7 +385,7 @@ PLAYWRIGHT_HTML_OPEN=never npx playwright test tests/<group>/<scenario>.spec.ts:
 playwright-cli attach tw-XXXX
 ```
 
-The test is paused at the start. Step forward or run to until just before the failing action or assertion, then diagnose:
+테스트는 시작 지점에서 멈춥니다. 단계별로 진행하거나 실패하는 작업/검증 직전까지 실행한 뒤 진단합니다.
 
 ```bash
 playwright-cli snapshot                # did the element change / move / rename?
@@ -394,40 +394,40 @@ playwright-cli requests                # failed request? wrong payload?
 playwright-cli show --annotate         # ask the user to point somewhere
 ```
 
-Common causes: selector drift, new wrapper element, label/ARIA rename, timing (transition, async load), assertion text updated in the app, test data leaking between runs.
+흔한 원인: 선택자 변경, 새로운 래퍼 요소, label/ARIA 이름 변경, 타이밍(전환/비동기 로드), 앱의 검증 대상 텍스트 변경, 실행 간 테스트 데이터 누출.
 
-Rehearse the corrected interaction with `playwright-cli` — the generated code in the output is what you paste back into the test.
+`playwright-cli`로 수정한 상호작용을 연습하고 출력에 생성된 코드를 테스트에 반영합니다.
 
-### 3.3 Apply the fix
+### 3.3 수정 적용
 
-Edit the test file: update the locator, assertion, step order, or inputs to match the corrected behaviour. Stop the background debug run. Rerun the single test to confirm green.
+올바른 동작에 맞게 테스트 파일의 로케이터, 검증문, 단계 순서, 입력을 수정합니다. 백그라운드 디버그 실행을 중지한 뒤 해당 테스트만 재실행하여 통과를 확인합니다.
 
-Never skip hooks or add sleeps as a fix. Never use `networkidle`.
+해결책으로 hook을 건너뛰거나 sleep을 추가하지 마세요. `networkidle`도 사용하지 마세요.
 
-### 3.4 Reconcile with the spec
+### 3.4 명세와 일치시키기
 
-Open the spec referenced by the `// spec:` header in the test file and locate the scenario that matches the test.
+테스트 파일의 `// spec:` 헤더가 가리키는 명세를 열고 해당 시나리오를 찾습니다.
 
-- **Fix was purely technical** (locator drift, better assertion shape) and the spec's user-level behaviour still matches the app → leave the spec alone.
-- **Fix changed user-visible steps, inputs, order, or expected outcomes** that the spec describes → update the spec to match reality. Keep the scenario id and file path stable; only the step / expect lines change.
-- **Unclear whether the app change is intentional** (spec is stale) **or a regression** (test was right, app is wrong) → **stop and ask the user**. Provide:
-  - the scenario id (e.g. `2.3`),
-  - the spec lines that no longer match,
-  - the observed app behaviour (quote a snapshot excerpt or a concrete outcome).
+- **기술적인 수정만 한 경우**(로케이터 변경, 검증 방식 개선)이며 사용자 관점의 명세 동작이 앱과 여전히 일치하면 명세를 유지합니다.
+- **명세에 적힌 사용자 단계, 입력, 순서, 기대 결과가 바뀐 경우**에는 실제 동작에 맞게 명세를 갱신합니다. 시나리오 ID와 파일 경로는 유지하고 step / expect 줄만 수정합니다.
+- **의도된 앱 변경**(명세가 오래됨)인지 **회귀 버그**(테스트는 맞고 앱이 잘못됨)인지 불명확하면 **멈추고 사용자에게 질문**합니다. 다음을 제공합니다.
+  - 시나리오 ID(예: `2.3`)
+  - 더 이상 일치하지 않는 명세 줄
+  - 관찰한 앱 동작(스냅샷 일부 또는 구체적인 결과 인용)
 
-Only after the user answers, either update the spec (intentional change) or file/flag the test as covering a bug (regression).
+사용자 답변 후 의도된 변경이면 명세를 갱신하고, 회귀 버그이면 버그를 확인하는 테스트로 기록하거나 표시합니다.
 
-### 3.5 Iteration and giving up
+### 3.5 반복과 중단
 
-- Fix failures one at a time; rerun after each.
-- If after thorough investigation you are confident the test is correct but the app is wrong *and* the user has confirmed it's a bug: mark the test `test.fixme(...)` with a comment pointing at the user's decision or issue link. Never silently skip.
+- 실패를 하나씩 수정하고 매번 재실행합니다.
+- 충분히 조사한 결과 테스트가 맞고 앱이 잘못되었다고 확신하며 **사용자도 버그임을 확인했다면**, 사용자 결정이나 이슈 링크를 주석에 적고 `test.fixme(...)`로 표시합니다. 말없이 건너뛰지 마세요.
 
 ---
 
-## Cross-references
+## 관련 문서
 
-| For... | See |
+| 내용 | 참고 |
 |---|---|
-| `--debug=cli` / attach mechanics | [playwright-tests.md](playwright-tests.md) |
-| Mocking requests during exploration/generation | [request-mocking.md](request-mocking.md) |
-| Managing the CLI browser session | [session-management.md](session-management.md) |
+| `--debug=cli` / 연결 방식 | [playwright-tests.md](playwright-tests.md) |
+| 탐색/생성 중 요청 모킹 | [request-mocking.md](request-mocking.md) |
+| CLI 브라우저 세션 관리 | [session-management.md](session-management.md) |
