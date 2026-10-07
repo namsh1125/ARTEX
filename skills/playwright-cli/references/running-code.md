@@ -1,8 +1,8 @@
-# Running Custom Playwright Code
+# 사용자 정의 Playwright 코드 실행
 
-Use `run-code` to execute arbitrary Playwright code for advanced scenarios not covered by CLI commands.
+CLI 명령으로 처리할 수 없는 고급 시나리오는 `run-code`로 Playwright 코드를 실행합니다.
 
-## Syntax
+## 구문
 
 ```bash
 playwright-cli run-code "async page => {
@@ -11,17 +11,17 @@ playwright-cli run-code "async page => {
 }"
 ```
 
-You can also load the function from a file:
+파일에서 함수를 불러올 수도 있습니다.
 
 ```bash
 playwright-cli run-code --filename=./my-script.js
 ```
 
 
-The code must be a single function expression, it is wrapped in `(...)` and evaluated.
-import/export/require syntax is not supported.
+코드는 단일 함수 표현식이어야 하며 `(...)`로 감싼 뒤 평가됩니다.
+import/export/require 구문은 지원하지 않습니다.
 
-## Geolocation
+## 위치 정보
 
 ```bash
 # Grant geolocation permission and set location
@@ -42,7 +42,7 @@ playwright-cli run-code "async page => {
 }"
 ```
 
-## Permissions
+## 권한
 
 ```bash
 # Grant multiple permissions
@@ -63,7 +63,7 @@ playwright-cli run-code "async page => {
 }"
 ```
 
-## Media Emulation
+## 미디어 에뮬레이션
 
 ```bash
 # Emulate dark color scheme
@@ -87,7 +87,7 @@ playwright-cli run-code "async page => {
 }"
 ```
 
-## Wait Strategies
+## 대기 전략
 
 ```bash
 # Wait for network idle
@@ -111,7 +111,7 @@ playwright-cli run-code "async page => {
 }"
 ```
 
-## Frames and Iframes
+## 프레임과 iframe
 
 ```bash
 # Work with iframe
@@ -127,7 +127,7 @@ playwright-cli run-code "async page => {
 }"
 ```
 
-## File Downloads
+## 파일 다운로드
 
 ```bash
 # Handle file download
@@ -140,7 +140,7 @@ playwright-cli run-code "async page => {
 }"
 ```
 
-## Clipboard
+## 클립보드
 
 ```bash
 # Read clipboard (requires permission)
@@ -155,7 +155,7 @@ playwright-cli run-code "async page => {
 }"
 ```
 
-## Page Information
+## 페이지 정보
 
 ```bash
 # Get page title
@@ -179,7 +179,7 @@ playwright-cli run-code "async page => {
 }"
 ```
 
-## JavaScript Execution
+## JavaScript 실행
 
 ```bash
 # Execute JavaScript and return result
@@ -200,7 +200,7 @@ playwright-cli run-code "async page => {
 }"
 ```
 
-## Error Handling
+## 오류 처리
 
 ```bash
 # Try-catch in run-code
@@ -214,7 +214,7 @@ playwright-cli run-code "async page => {
 }"
 ```
 
-## Complex Workflows
+## 복합 작업 흐름
 
 ```bash
 # Login and save state
