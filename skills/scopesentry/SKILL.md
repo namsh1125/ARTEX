@@ -28,9 +28,9 @@ Cursor → Settings → MCP → 서버 추가:
 {
   "mcpServers": {
     "scopesentry": {
-      "url": "http://<你的主机>:8082/mcp",
+      "url": "http://<호스트>:8082/mcp",
       "headers": {
-        "X-API-Key": "ssk_你的密钥"
+        "X-API-Key": "ssk_여기에_키_입력"
       }
     }
   }
@@ -89,7 +89,7 @@ Cursor → Settings → MCP → 서버 추가:
   "pageSize": 20,
   "search": "domain=^example.com",
   "filter": {
-    "project": ["<项目ObjectID>"]
+    "project": ["<프로젝트ObjectID>"]
   }
 }
 ```
@@ -116,12 +116,12 @@ Cursor → Settings → MCP → 서버 추가:
 
 ```json
 {
-  "name": "example-子域名收集",
+  "name": "example-하위도메인수집",
   "node": ["node-1"],
-  "template": "<模板ObjectID>",
+  "template": "<템플릿ObjectID>",
   "targetSource": "general",
   "target": "example.com\nfoo.com",
-  "project": ["<项目ObjectID>"]
+  "project": ["<프로젝트ObjectID>"]
 }
 ```
 
@@ -129,12 +129,12 @@ Cursor → Settings → MCP → 서버 추가:
 
 ```json
 {
-  "name": "example-端口与漏洞",
+  "name": "example-포트와취약점",
   "node": ["node-1"],
-  "template": "<后续模块模板ObjectID>",
+  "template": "<후속모듈템플릿ObjectID>",
   "targetSource": "subdomain",
-  "search": "task==\"example-子域名收集\"",
-  "project": ["<项目ObjectID>"]
+  "search": "task==\"example-하위도메인수집\"",
+  "project": ["<프로젝트ObjectID>"]
 }
 ```
 
@@ -163,10 +163,10 @@ Cursor → Settings → MCP → 서버 추가:
 
 ```mermaid
 flowchart LR
-  A[根域名列表] --> B[阶段1: general + SubdomainScan]
-  B --> C[子域名入库]
-  C --> D[阶段2: subdomain + task==阶段1任务名]
-  D --> E[端口/资产/漏洞等模块]
+  A[루트 도메인 목록] --> B[1단계: general + SubdomainScan]
+  B --> C[하위 도메인 저장]
+  C --> D[2단계: subdomain + task==1단계작업이름]
+  D --> E[포트/자산/취약점 등의 모듈]
 ```
 
 ### 3.4 스캔 템플릿 생성
@@ -184,8 +184,8 @@ flowchart LR
 ```json
 {
   "asset_type": "subdomain",
-  "search": "task==\"某任务名\"",
-  "filter": {"project": ["<项目ObjectID>"]}
+  "search": "task==\"작업이름\"",
+  "filter": {"project": ["<프로젝트ObjectID>"]}
 }
 ```
 
@@ -309,7 +309,7 @@ JSON 객체에서 같은 키의 여러 값은 **OR**, 서로 다른 키는 **AND
 **filter 예제:**
 
 ```json
-{"project": ["<项目ObjectID>"], "port": ["443"]}
+{"project": ["<프로젝트ObjectID>"], "port": ["443"]}
 ```
 
 **조합 조회 예제:**
@@ -318,7 +318,7 @@ JSON 객체에서 같은 키의 여러 값은 **OR**, 서로 다른 키는 **AND
 {
   "asset_type": "asset",
   "search": "domain=^baidu && port==443",
-  "filter": {"project": ["<项目ObjectID>"]},
+  "filter": {"project": ["<프로젝트ObjectID>"]},
   "pageIndex": 1,
   "pageSize": 10
 }
