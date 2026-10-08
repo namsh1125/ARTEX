@@ -133,7 +133,7 @@ export function AgentEditor({ agentKey, onSaved }: { agentKey: string; onSaved?:
   async function resetPrompt() {
     try {
       const r = await api.resetAgentPrompt(agentKey);
-      toast.success(`기본값으로 복원했습니다(v${r.version}）`);
+      toast.success(`기본값으로 복원했습니다(v${r.version})`);
       reload();
     } catch (e) {
       toast.error("복원 실패: " + (e as Error).message);
