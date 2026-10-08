@@ -61,14 +61,14 @@ import type {
   Tool,
 } from "@/lib/types";
 
-// fmtTokens 把 token 数压成紧凑写法(1.2k / 3.4M),用于审批用量统计。
+// fmtTokens는 승인 사용량 통계용 토큰 수를 1.2k / 3.4M처럼 축약합니다.
 function fmtTokens(n: number): string {
   if (n >= 1_000_000) return (n / 1_000_000).toFixed(1) + "M";
   if (n >= 1000) return (n / 1000).toFixed(1) + "k";
   return String(n);
 }
 
-// JudgeStat 是一块统计数字(标签 + 数值)。
+// JudgeStat은 라벨과 값을 표시하는 통계 타일입니다.
 function JudgeStat({ label, value }: { label: string; value: string }) {
   return (
     <div className="rounded-lg border bg-muted/20 px-3 py-2">
@@ -78,7 +78,7 @@ function JudgeStat({ label, value }: { label: string; value: string }) {
   );
 }
 
-// JudgeSparkbars 用纯 div 画近 N 天每日消耗(输入+输出)的迷你柱图,免图表库依赖。
+// JudgeSparkbars는 차트 라이브러리 없이 div로 최근 N일의 입력+출력 사용량 막대그래프를 그립니다.
 function JudgeSparkbars({ daily }: { daily: JudgeDayUsage[] }) {
   const max = Math.max(1, ...daily.map((d) => d.input_tokens + d.output_tokens));
   return (
@@ -212,12 +212,12 @@ function JudgeCard() {
   const [saving, setSaving] = React.useState(false);
   const [usage, setUsage] = React.useState<JudgeUsage | null>(null);
 
-  // 审批用量统计:失败不打断配置页,仅在开启时拉取。
+  // 승인 사용량은 활성화 시에만 조회하며 실패해도 설정 페이지를 중단하지 않습니다.
   const loadUsage = React.useCallback(async () => {
     try {
       setUsage(await api.interceptJudgeUsage(30));
     } catch {
-      // 忽略:统计不可用不应影响配置编辑
+      // 통계 조회 실패가 설정 편집에 영향을 주지 않도록 무시합니다.
     }
   }, []);
 
@@ -238,7 +238,7 @@ function JudgeCard() {
     load();
   }, [load]);
 
-  // 开启后(含初次加载把开关读为 true 时)拉取审批用量统计。
+  // 최초 조회에서 true인 경우를 포함하여 활성화 후 승인 사용량을 조회합니다.
   React.useEffect(() => {
     if (cfg.enabled) loadUsage();
   }, [cfg.enabled, loadUsage]);
@@ -261,7 +261,7 @@ function JudgeCard() {
   }
 
   async function restorePrompt() {
-    // 清空提示词并保存 → 服务端下次返回内置模板全文,回填到输入框。
+    // 프롬프트를 비우고 저장하면 다음 응답에서 기본 템플릿 전문을 받아 입력란에 채웁니다.
     setSaving(true);
     try {
       await api.interceptSetJudgeConfig({ ...cfg, prompt: "" });
@@ -277,7 +277,7 @@ function JudgeCard() {
 
   return (
     <div className="space-y-4">
-      {/* 启用开关 —— 独立高亮条 */}
+      {/* 활성화 스위치: 독립 강조 영역 */}
       <div
         className={`flex items-center justify-between gap-3 rounded-lg border px-4 py-3 ${
           cfg.enabled ? "border-violet-400/50 bg-violet-50/40 dark:bg-violet-950/20" : "bg-muted/40"
@@ -298,7 +298,7 @@ function JudgeCard() {
         </div>
       </div>
 
-      {/* 审批 Token 用量统计(全局累计,独立于各模型配置) */}
+      {/* 승인 토큰 사용량: 전역 누적이며 모델 설정별 통계와 독립적 */}
       {cfg.enabled && usage && (
         <Card>
           <CardContent className="p-4">
@@ -334,7 +334,7 @@ function JudgeCard() {
 
       {cfg.enabled && (
         <div className="grid gap-4 lg:grid-cols-5">
-          {/* 左:提示词编辑器(直接展开,主区域) */}
+          {/* 왼쪽: 기본으로 펼친 주 프롬프트 편집 영역 */}
           <Card className="lg:col-span-3">
             <CardContent className="flex h-full flex-col gap-2 p-4">
               <div className="flex items-center justify-between">
@@ -357,7 +357,7 @@ function JudgeCard() {
             </CardContent>
           </Card>
 
-          {/* 右:判定参数(设置栏) */}
+          {/* 오른쪽: 판단 매개변수 설정 */}
           <Card className="lg:col-span-2">
             <CardContent className="space-y-5 p-4">
               <div className="space-y-4">
@@ -464,7 +464,7 @@ export default function InterceptPage() {
       const cfg = await api.interceptGetToolConfig();
       setScopeTools(cfg.enabled_tools);
     } catch {
-      // 信息条非关键,失败静默
+      // 부가 정보이므로 실패는 조용히 무시합니다.
     }
   }, []);
 
@@ -488,8 +488,8 @@ export default function InterceptPage() {
       setRegexErr("");
       setRegexWarn(false);
     } catch {
-      // JS RegExp 不支持 Go RE2 扩展语法（如 (?i) 内联 flag）。
-      // 这里只是预览校验失败，不代表 Go 端无效；交给服务端最终验证。
+      // JS RegExp는 Go RE2 확장 구문(예: (?i) 인라인 플래그)을 지원하지 않습니다.
+      // 미리보기 검증 실패가 Go에서 무효임을 뜻하지 않으므로 최종 판단은 서버에 맡깁니다.
       setRegexErr("");
       setRegexWarn(true);
     }
@@ -616,7 +616,7 @@ export default function InterceptPage() {
         </div>
       </div>
 
-      {/* ---- 拦截范围信息条（规则匹配与模型兜底共用：不在范围内的工具两者都不介入）---- */}
+      {/* 차단 범위 안내: 규칙과 모델 대체 판단 모두 범위 밖 도구에는 개입하지 않습니다. */}
       <div
         className={`flex items-center justify-between gap-3 rounded-lg border px-4 py-2.5 ${
           scopeTools.length === 0
@@ -657,7 +657,7 @@ export default function InterceptPage() {
           <TabsTrigger value="judge">모델 설정</TabsTrigger>
         </TabsList>
 
-        {/* ---- tab: 拦截规则 ---- */}
+        {/* 탭: 차단 규칙 */}
         <TabsContent value="rules" className="mt-4 flex flex-col gap-4">
           <div className="flex items-center justify-between gap-3">
             <p className="text-xs text-muted-foreground">
@@ -753,7 +753,7 @@ export default function InterceptPage() {
           </Card>
         </TabsContent>
 
-        {/* ---- tab: 模型配置 ---- */}
+        {/* 탭: 모델 설정 */}
         <TabsContent value="judge" className="mt-4">
           <JudgeCard />
         </TabsContent>
