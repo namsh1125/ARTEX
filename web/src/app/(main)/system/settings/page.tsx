@@ -155,7 +155,7 @@ export default function SystemSettingsPage() {
       .setSettings({ noa_compaction: v })
       .then((s) => {
         apply(s);
-        toast.success(v ? "켜짐 noa 컨텍스트 압축(이후 시작하는 실행에 적용)" : "꺼짐 noa 컨텍스트 압축(기본 압축 복원)");
+        toast.success(v ? "noa 컨텍스트 압축을 켰습니다(이후 시작하는 실행에 적용)" : "noa 컨텍스트 압축을 껐습니다(기본 압축 복원)");
       })
       .catch((e) => {
         setNoaCompaction(!v); // revert on failure
