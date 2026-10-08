@@ -45,56 +45,56 @@ type Config struct {
 	// ContextWindowK is the model's context window in K tokens (user-configured),
 	// used to size compaction thresholds. 0 = default; see CompactionWindow.
 	ContextWindowK int
-	// ThinkingType 独立控制思考「开关」字段(thinking.type):
-	//   "" = 不发送(默认,兼容不支持该字段的模型); "disabled" = 显式关闭;
-	//   "enabled" = 开启. 与 ReasoningEffort 完全解耦——有些接口没有 thinking 字段、
-	//   只靠强度参数就能激活思考,故两者可各自单独设置.
+	// ThinkingType은 추론 활성화 필드(thinking.type)를 독립적으로 제어합니다.
+	//   "" = 전송하지 않음(기본, 미지원 모델 호환); "disabled" = 명시적 비활성화;
+	//   "enabled" = 활성화. ReasoningEffort와 완전히 독립적입니다. 일부 API는 thinking 필드 없이
+	//   강도 매개변수만으로 추론을 활성화하므로 각각 따로 설정할 수 있습니다.
 	ThinkingType string
-	// ReasoningEffort 独立控制思考「强度」字段:
-	//   "" = 不发送(默认); "low"/"medium"/"high"/"xhigh"/"max" = 对应强度.
-	//   OpenAI 映射为顶层 reasoning_effort;Anthropic 映射为 output_config.effort.
+	// ReasoningEffort는 추론 강도 필드를 독립적으로 제어합니다.
+	//   "" = 전송하지 않음(기본); "low"/"medium"/"high"/"xhigh"/"max" = 해당 강도.
+	//   OpenAI는 최상위 reasoning_effort, Anthropic은 output_config.effort로 매핑합니다.
 	ReasoningEffort string
-	// Stream 控制该 profile 是否使用流式(SSE)接口。true(默认)= 流式;false = 真·
-	// 非流式(发 stream:false,一次性拿完整 JSON,走 Provider.Complete)。非流式可绕开
-	// 某些网关糟糕的 SSE 实现(空帧、思考字段丢帧),代价是失去运行中的实时进度/实时
-	// token 计数。映射为 agentcore.Options.NonStreaming = !Stream。
+	// Stream은 프로필의 스트리밍(SSE) 사용 여부입니다. true(기본)=스트리밍, false=
+	// 실제 비스트리밍(stream:false로 전체 JSON을 한 번에 받아 Provider.Complete 사용). 비스트리밍은
+	// 일부 게이트웨이의 잘못된 SSE 구현(빈 프레임, 추론 필드 유실)을 피하지만 실행 중 실시간 진행과
+	// 토큰 수 표시를 잃습니다. agentcore.Options.NonStreaming = !Stream으로 매핑합니다.
 	Stream bool
-	// MaxTokens 是单次回复的输出上限(token)。0 = 不发送该字段,由服务端默认值决定
-	// (历史行为)。与 ContextWindowK 不同:后者是模型总容量,只在本地用来算压缩阈值,
-	// 不出现在请求里;本值随每次请求发出。映射为 agentcore.Options.MaxTokens。
+	// MaxTokens는 응답 하나의 출력 토큰 한도입니다. 0이면 필드를 보내지 않고 서버 기본값을 따릅니다
+	// (기존 동작). ContextWindowK는 모델 전체 용량으로 로컬 압축 임계값 계산에만 쓰고 요청에는
+	// 포함하지 않습니다. MaxTokens는 요청마다 전달하며 agentcore.Options.MaxTokens로 매핑합니다.
 	MaxTokens int
-	// MaxTokensField 选择 MaxTokens 用哪个请求字段名,仅对 format=openai 生效:
-	//   "" = max_tokens(默认); "max_completion_tokens" = 新字段。
-	// OpenAI 推理模型(o 系列/GPT-5)只认后者,收到 max_tokens 会直接报
-	// unsupported_parameter;而多数兼容网关只认前者,故不做自动推断,交由用户按端点选。
+	// MaxTokensField는 MaxTokens의 요청 필드명을 선택하며 format=openai에만 적용합니다.
+	//   "" = max_tokens(기본); "max_completion_tokens" = 새 필드.
+	// OpenAI 추론 모델(o 시리즈/GPT-5)은 후자만 인식하며 max_tokens를 받으면
+	// unsupported_parameter를 반환합니다. 많은 호환 게이트웨이는 전자만 지원하므로 자동 추론하지 않고 사용자가 엔드포인트에 맞춰 선택합니다.
 	MaxTokensField string
-	// SessionHeaderKey,非空时,让每次 LLM 请求带上一个自定义 HTTP 头,头名为该值、
-	// 头值为【当前会话的 session id】(chat 会话=conv-<id>,worker=exp<x>-worker-i<intent>
-	// 等,见 WorkerSessionID)。用于某些按 session-id 头做提示缓存/粘性路由的网关。
-	// 空 = 不发送。值由 transcript.WithSessionID 挂在请求 context 上,由 RoundTripper
-	// 读取填入,因此同一共享 provider 也能按会话发出不同的头值。
+	// SessionHeaderKey가 비어 있지 않으면 각 LLM 요청에 이 이름의 사용자 정의 HTTP 헤더를 넣습니다.
+	// 값은 현재 대화의 session id입니다(chat=conv-<id>, worker=exp<x>-worker-i<intent>
+	// 등, WorkerSessionID 참고). session-id 헤더로 프롬프트 캐시/고정 라우팅을 하는 게이트웨이에 사용합니다.
+	// 비어 있으면 보내지 않습니다. transcript.WithSessionID가 요청 context에 넣은 값을 RoundTripper가
+	// 읽어 채우므로 같은 공유 provider에서도 대화마다 다른 헤더 값을 보낼 수 있습니다.
 	SessionHeaderKey string
-	// Retry 是该配置解析后的重试参数(profile 覆盖 → 全局策略 → 内置默认,由
-	// server 侧解析)。三层的含义见 RetryConfig;零值 = 完全沿用内置默认。
+	// Retry는 해석된 재시도 매개변수입니다(프로필 재정의 → 전역 정책 → 내장 기본값,
+	// server에서 해석). 세 계층의 의미는 RetryConfig 참고. 제로 값이면 내장 기본값을 그대로 사용합니다.
 	Retry RetryConfig
 }
 
-// RetryConfig 是随一个 LLM 配置走的重试参数。每层的「次数」统一语义:
-// 0 = 用内置默认次数;负数 = 关闭该层重试;>0 = 用该值。每层的「间隔」:
-// 0 = 用该层原本的指数退避;>0 = 改用这个固定间隔。
+// RetryConfig는 LLM 설정별 재시도 매개변수입니다. 각 계층의 횟수 의미는 동일합니다.
+// 0=내장 기본 횟수, 음수=해당 계층 재시도 비활성화, 양수=지정 횟수. 간격은
+// 0=기존 지수 백오프, 양수=지정 고정 간격입니다.
 type RetryConfig struct {
-	// ConnectAttempts/ConnectInterval:SDK 建连重试(连接重置/超时/429/5xx,流开始前),
-	// 直接映射为 llm.Config.MaxRetries / RetryInterval。默认 3 次、0.5s 起指数(封顶 8s)。
+	// ConnectAttempts/ConnectInterval: SDK 연결 재시도(스트림 시작 전 연결 재설정/시간 초과/429/5xx),
+	// llm.Config.MaxRetries / RetryInterval에 직접 매핑. 기본 3회, 0.5초부터 지수 증가(최대 8초).
 	ConnectAttempts int
 	ConnectInterval time.Duration
-	// EmptyAttempts/EmptyInterval:SDK 空响应重试(完成但无 content block,仅 openai
-	// 格式),映射为 llm.Config.EmptyResponseRetries / EmptyResponseInterval。
-	// 默认 2 次、同一条指数梯度。
+	// EmptyAttempts/EmptyInterval: SDK 빈 응답 재시도(완료했으나 content block이 없음, openai
+	// 형식만 적용). llm.Config.EmptyResponseRetries / EmptyResponseInterval에 매핑합니다.
+	// 기본 2회이며 동일한 지수 백오프를 사용합니다.
 	EmptyAttempts int
 	EmptyInterval time.Duration
-	// StreamAttempts/StreamInterval:同 provider 安全窗口重试——本项目在 SDK 之上补的
-	// 一层,只在「还没向调用方交付任何输出」时重放断流/过载/流内 429。SDK 看不到它,
-	// 由 server/task_llm.go 消费。默认 2 次、0.5s 起指数(封顶 4s)。
+	// StreamAttempts/StreamInterval: 같은 provider의 안전 구간 재시도. SDK 위에 추가한 계층으로
+	// 호출자에게 아직 출력을 전달하지 않았을 때만 스트림 중단/과부하/스트림 내부 429를 재시도합니다. SDK에서는 보이지 않으며
+	// server/task_llm.go가 사용합니다. 기본 2회, 0.5초부터 지수 증가(최대 4초).
 	StreamAttempts int
 	StreamInterval time.Duration
 }
@@ -162,7 +162,7 @@ func FromEnv() (Config, bool) {
 		BaseURL: os.Getenv("ARTEX_LLM_BASE_URL"),
 		Model:   os.Getenv("ARTEX_LLM_MODEL"),
 		Proxy:   strings.TrimSpace(os.Getenv("ARTEX_LLM_PROXY")),
-		// 默认流式;ARTEX_LLM_STREAM=false/0/off 显式关闭走非流式。
+		// 기본은 스트리밍입니다. ARTEX_LLM_STREAM=false/0/off로 명시적으로 끄면 비스트리밍을 사용합니다.
 		Stream: !isFalsy(os.Getenv("ARTEX_LLM_STREAM")),
 	}
 	switch prov {
@@ -201,7 +201,7 @@ func ConfigFrom(provider, model, baseURL, apiKey, proxy string) Config {
 		BaseURL: strings.TrimRight(strings.TrimSpace(baseURL), "/"),
 		APIKey:  strings.TrimSpace(apiKey),
 		Proxy:   strings.TrimSpace(proxy),
-		Stream:  true, // 默认流式;调用方按 profile 覆盖
+		Stream:  true, // 기본 스트리밍이며 호출자가 프로필에 따라 재정의합니다.
 	}
 	switch strings.TrimSpace(provider) {
 	case "openai":
@@ -265,14 +265,14 @@ func (c Config) NewProvider() (llm.Provider, error) {
 		Model:      c.Model,
 		HTTPClient: client,
 	}
-	// 思考开关与强度两个字段各自透传(空 = 该字段不发送)。二者解耦:
-	// 可只发 thinking.type、只发 effort、都发、或都不发。
+	// 추론 활성화와 강도는 각각 전달합니다(비어 있으면 해당 필드 생략). 서로 독립적이므로
+	// thinking.type만, effort만, 둘 다 또는 둘 다 없이 보낼 수 있습니다.
 	lc.ThinkingType = c.ThinkingType
 	lc.ReasoningEffort = c.ReasoningEffort
-	// 输出上限的字段名选择(空 = 用 max_tokens)。上限的「值」不在这里:它每轮随
-	// agentcore.Options.MaxTokens 走,provider 只决定把它塞进哪个键。
+	// 출력 한도의 필드명 선택(비어 있으면 max_tokens). 한도 값은 여기서 정하지 않고 매 턴
+	// agentcore.Options.MaxTokens로 전달합니다. provider는 어떤 키에 넣을지만 결정합니다.
 	lc.MaxTokensField = c.MaxTokensField
-	// 重试参数与 SDK 同语义(次数 0=默认/负=关闭,间隔 0=指数退避/>0=固定),原样透传。
+	// 재시도 매개변수는 SDK와 같은 의미(횟수 0=기본/음수=끄기, 간격 0=지수 백오프/양수=고정)로 그대로 전달합니다.
 	lc.MaxRetries = c.Retry.ConnectAttempts
 	lc.RetryInterval = c.Retry.ConnectInterval
 	lc.EmptyResponseRetries = c.Retry.EmptyAttempts
@@ -401,7 +401,7 @@ func quotaAwareHTTPClient(proxy, sessionHeaderKey string) (*http.Client, error) 
 	transport := http.DefaultTransport.(*http.Transport).Clone()
 	proxy = strings.TrimSpace(proxy)
 	if proxy == "" {
-		transport.Proxy = nil // 留空=直连,不回退 HTTP_PROXY/HTTPS_PROXY 环境变量
+		transport.Proxy = nil // 비어 있으면 직접 연결하며 HTTP_PROXY/HTTPS_PROXY 환경 변수로 대체하지 않습니다.
 	} else {
 		proxyURL, err := url.Parse(proxy)
 		if err != nil {
@@ -420,19 +420,19 @@ func quotaAwareHTTPClient(proxy, sessionHeaderKey string) (*http.Client, error) 
 }
 
 // logTestConnection prints the raw HTTP status code(s) and response body of a
-// connection test to the server log, so "点击测试" leaves a diagnosable trail of
+// connection test to the server log, so "테스트 클릭" leaves a diagnosable trail of
 // exactly what the gateway returned — 401 bodies, quota text, empty frames — not
 // just the collapsed ok/err the UI shows. Bodies are clipped to keep a chatty
 // SSE stream from flooding the log.
 func logTestConnection(c Config, capt *llmrec.Capture) {
 	attempts := capt.Attempts()
 	if len(attempts) == 0 {
-		log.Printf("[llm-test] %s / %s @ %s — 未发出任何 HTTP 请求(配置解析或建连即失败)",
+		log.Printf("[llm-test] %s / %s @ %s — HTTP 요청을 보내지 못했습니다(설정 해석 또는 연결 단계 실패)",
 			c.Provider(), c.Model, c.BaseURL)
 		return
 	}
 	for i, a := range attempts {
-		log.Printf("[llm-test] %s / %s @ %s — 尝试 %d/%d HTTP %d\n响应体: %s",
+		log.Printf("[llm-test] %s / %s @ %s — 시도 %d/%d HTTP %d\n응답 본문: %s",
 			c.Provider(), c.Model, c.BaseURL, i+1, len(attempts), a.Status, clipBody(a.Body))
 	}
 }
@@ -442,11 +442,11 @@ func logTestConnection(c Config, capt *llmrec.Capture) {
 func clipBody(s string) string {
 	s = strings.TrimSpace(s)
 	if s == "" {
-		return "(空)"
+		return "(비어 있음)"
 	}
 	const max = 4096
 	if len(s) > max {
-		return s[:max] + fmt.Sprintf("…(截断,共 %d 字节)", len(s))
+		return s[:max] + fmt.Sprintf("…(잘림, 전체 %d바이트)", len(s))
 	}
 	return s
 }
@@ -461,41 +461,41 @@ func TestConnection(ctx context.Context, c Config) (time.Duration, string, error
 	}
 	ctx, cancel := context.WithTimeout(ctx, 30*time.Second)
 	defer cancel()
-	// 抓取原始 wire 报文:连接测试最需要看到的就是网关到底回了什么(状态码+响应体),
-	// 而 norma 把响应解码成 StreamEvent 后这些就没了。quotaAwareTransport 会在
-	// context 里找到这个 Capture 并填入每次 HTTP 尝试的状态码与 body。
+	// 원본 전송 메시지를 캡처합니다. 연결 테스트에서는 게이트웨이가 실제 반환한 상태 코드와 본문이 중요하지만
+	// norma가 응답을 StreamEvent로 디코딩하면 사라집니다. quotaAwareTransport가 context의
+	// Capture를 찾아 HTTP 시도마다 상태 코드와 본문을 기록합니다.
 	ctx, capt := llmrec.NewCapture(ctx)
 	defer logTestConnection(c, capt)
-	// 连接测试是一条单发路径,不经过 agentcore 的会话循环,因此没人往 context 上挂
-	// session id。对配了 SessionHeaderKey 的端点(如 opencode zen 强制要求
-	// x-opencode-session 头,缺了直接 400 MissingSessionID),这会导致"对话正常、
-	// 点击测试却 400"的落差。这里补挂一个一次性随机 session id,让测试与真实对话走同
-	// 一套发头逻辑;未配 SessionHeaderKey 的端点不读它,无副作用。
+	// 연결 테스트는 agentcore 대화 루프를 거치지 않는 일회성 호출이므로 context에
+	// session id를 설정하는 곳이 없습니다. SessionHeaderKey를 설정한 엔드포인트(예: opencode zen은
+	// x-opencode-session이 없으면 400 MissingSessionID 반환)에서는 대화는 정상인데
+	// 연결 테스트는 400을 반환할 수 있습니다. 일회용 임의 session id를 넣어 실제 대화와 같은
+	// 헤더 전송 로직을 사용합니다. SessionHeaderKey가 없는 엔드포인트는 읽지 않으므로 영향이 없습니다.
 	ctx = transcript.WithSessionID(ctx, "conntest-"+transcript.NewSessionID())
 	start := time.Now()
-	// MaxTokens 要给足：推理模型(如 deepseek-v4-pro)在给出答案前会先产出一大段
-	// 思考(实测对一句 "ping" 也能烧 ~2900 token)。若只给 32,模型会一直卡在"思考阶段"
-	// 就撞到输出上限(finish=length)、被截断,连接测试虽仍算通(err=nil)但显示成
-	// "已中断/length/resume" 一团糟。给足预算让它把 OK 干净吐完(finish=stop)。
-	// EscalateMaxTokens 保持 false:不因截断而抬额重试,避免 resume 循环空烧。
+	// MaxTokens는 충분해야 합니다. 추론 모델(예: deepseek-v4-pro)은 답하기 전에 긴 추론을 생성합니다.
+	// 실제 측정에서는 ping 하나에도 약 2900토큰을 사용했습니다. 32만 주면 추론 중에 출력 한도에
+	// 도달해 잘리며(finish=length), 연결은 성공(err=nil)해도 화면에는 중단/length/resume처럼
+	// 불완전하게 표시됩니다. OK를 정상 출력하도록 충분한 예산을 제공합니다(finish=stop).
+	// EscalateMaxTokens는 false로 유지해 잘림에 따른 한도 증가 재시도와 resume 반복 낭비를 피합니다.
 	reply, err := agentcore.Run(ctx, agentcore.Options{
 		Provider:       prov,
-		SystemPrompt:   []string{"你是连接测试。直接输出两个字符 OK 即可，不要思考、不要解释、不要别的。"},
+		SystemPrompt:   []string{"연결 테스트입니다. 추론이나 설명 없이 OK 두 글자만 출력하세요."},
 		PermissionMode: acperm.ModeBypass,
 		MaxTurns:       1,
 		MaxTokens:      8192,
-		NonStreaming:   !c.Stream, // 用该 profile 的真实收发模式做连接测试
+		NonStreaming:   !c.Stream, // 프로필의 실제 송수신 모드로 연결을 테스트합니다.
 	}, "ping")
 	lat := time.Since(start)
 	if err != nil {
 		return lat, "", err
 	}
-	// err==nil 还不够：请求通了但模型一个字都不吐的情况真实存在(思考把预算烧光、
-	// 正文被安全策略吞掉、兼容层把 content 丢了)。这种配置在会话里就是"不回话",
-	// 测试却报成功——正是本项要消除的落差。没有可见正文一律判失败。
+	// err==nil만으로는 부족합니다. 요청은 성공했지만 추론이 예산을 소진하거나 정책이 본문을 제거하거나
+	// 호환 계층이 content를 유실해 아무 텍스트도 나오지 않을 수 있습니다. 대화에서는 답하지 않는 설정을
+	// 테스트가 성공으로 보고하지 않도록 보이는 본문이 없으면 실패로 판정합니다.
 	reply = strings.TrimSpace(reply)
 	if reply == "" {
-		return lat, "", fmt.Errorf("模型无回复内容（请求已通，但未返回任何文本）")
+		return lat, "", fmt.Errorf("모델 응답 내용이 없습니다(요청은 성공했지만 텍스트를 반환하지 않았습니다)")
 	}
 	return lat, reply, nil
 }
