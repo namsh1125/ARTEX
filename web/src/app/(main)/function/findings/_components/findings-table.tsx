@@ -110,8 +110,8 @@ interface FindingsTableProps {
   selectAllLabel?: string;
 }
 
-// FindingsTable 是发现列表的表格主体,平铺视图与按任务分组视图共用同一份行渲染
-// (勾选 / 行内展开 / 行内改名与改状态 / 复测 / 深入 / 删除),差异只在外层容器与分页。
+// FindingsTable은 평면 보기와 작업별 그룹 보기가 공유하는 발견 사항 테이블 본문입니다.
+// 선택/행 펼치기/이름·상태 편집/재검증/심화/삭제는 같고 바깥 컨테이너와 페이지 구분만 다릅니다.
 export function FindingsTable({
   items,
   selectedIds,
@@ -327,11 +327,11 @@ export function FindingsTable({
               </TableRow>
               {open && (
                 <TableRow className="hover:bg-transparent">
-                  {/* whitespace-normal 覆盖 TableCell 默认的 nowrap,否则展开区文字
+                  {/* whitespace-normal로 TableCell의 기본 nowrap을 덮어써 펼친 영역의 텍스트가
                       강제 한 줄 표시로 셀을 넘침。 */}
                   <TableCell colSpan={COLUMN_COUNT} className="bg-muted/30 whitespace-normal">
                     <div className="flex flex-col gap-2 px-2 py-1">
-                      {/* 行内编辑:名称/类别/严重等级,可改并保存(仅独立 finding 行)。 */}
+                      {/* 인라인 편집: 이름/분류/심각도 수정 및 저장(독립 finding 행만 지원). */}
                       {f.finding_id && edit && (
                         <div className="flex flex-wrap items-end gap-3 rounded-md border bg-background px-3 py-2.5">
                           <div className="flex min-w-[12rem] flex-1 flex-col gap-1">
@@ -398,7 +398,7 @@ export function FindingsTable({
                         {f.evidence}
                       </pre>
 
-                      {/* 详细报告(Markdown):展开时按 finding_id 懒加载,免进详情页即可查看。 */}
+                      {/* 상세 Markdown 보고서: 펼칠 때 finding_id로 지연 로드하여 상세 페이지 이동 없이 확인. */}
                       {f.finding_id && (
                         <div className="flex flex-col gap-1.5">
                           <div className="flex items-center justify-between gap-2 text-xs text-muted-foreground">
@@ -424,9 +424,9 @@ export function FindingsTable({
                             if (!rep.text.trim())
                               return <p className="text-xs text-muted-foreground">상세 보고서 없음.</p>;
                             return (
-                              // break-words 会继承到段落/列表,pre 另加
-                              // whitespace-pre-wrap 让代码块也换行——否则长代码行/长 URL
-                              // 会撑宽 colSpan 单元格,把整张表挤出横向滚动条。
+                              // break-words는 문단과 목록에 상속되며 pre에는
+                              // whitespace-pre-wrap을 추가해 긴 코드나 URL도 줄바꿈합니다.
+                              // 그렇지 않으면 colSpan 셀이 전체 테이블을 늘려 가로 스크롤이 생깁니다.
                               <div className="min-w-0 break-words rounded-md border bg-background px-3 py-2 [&_pre]:whitespace-pre-wrap">
                                 <Markdown text={rep.text} />
                               </div>
