@@ -15,7 +15,7 @@ func TestTaskLifecycleAndDeleteCascade(t *testing.T) {
 	}
 	defer d.Close()
 
-	tk, err := d.CreateTask("迁移测试", "目标X", nil, 0, 0)
+	tk, err := d.CreateTask("마이그레이션 테스트", "목표X", nil, 0, 0)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -89,11 +89,11 @@ func TestTaskDeleteCascadeAssets(t *testing.T) {
 	}
 	defer d.Close()
 
-	first, err := d.CreateTask("级联删除测试", "目标A", nil, 0, 0)
+	first, err := d.CreateTask("연쇄 삭제 테스트", "목표A", nil, 0, 0)
 	if err != nil {
 		t.Fatal(err)
 	}
-	second, err := d.CreateTask("共享资产保留测试", "目标B", nil, 0, 0)
+	second, err := d.CreateTask("공유 자산 보존 테스트", "목표B", nil, 0, 0)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -304,7 +304,7 @@ func TestTaskRelationsAndLLMFailoverChain(t *testing.T) {
 	if _, err := d.MarkTaskLLMProfileQuotaExhausted(child.ID, profileIDs[1], "quota_exceeded"); err != nil {
 		t.Fatal(err)
 	}
-	last, err := d.MarkTaskLLMProfileQuotaExhausted(child.ID, profileIDs[2], "余额不足")
+	last, err := d.MarkTaskLLMProfileQuotaExhausted(child.ID, profileIDs[2], "잔액 부족")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -480,8 +480,8 @@ func TestTaskContextRejectsDuplicatesAndAllowsTerminalLLMEdits(t *testing.T) {
 		t.Fatal("duplicate source task ids should be rejected")
 	}
 
-	// 终态任务仍然可以改 LLM 配置链:任务结束后主 Agent 对话继续走这条链,
-	// 链上模型不可用时必须还能换。
+	// 종료 후 메인 에이전트 대화도 이 체인을 사용하므로 종료 작업도 LLM 체인 변경을 허용한다.
+	// 체인의 모델을 사용할 수 없으면 교체할 수 있어야 한다.
 	profileID, err := d.SaveProfile(&LLMProfile{
 		Name: fmt.Sprintf("terminal-chain-%d", time.Now().UnixNano()), Format: "openai",
 		Model: "terminal-model", APIKey: "test-key",
@@ -607,7 +607,7 @@ RETURNING id`, domainB, companyB).Scan(&companyAssetB); err != nil {
 			t.Errorf("company asset %d missing from task", assetID)
 			continue
 		}
-		if asset.TaskSource != taskCompanyAssetSource || asset.TaskSourceSummary != "任务创建时关联企业："+companyName {
+		if asset.TaskSource != taskCompanyAssetSource || asset.TaskSourceSummary != "작업 생성 시 기업 연결: "+companyName {
 			t.Errorf("asset %d provenance=%q/%q", assetID, asset.TaskSource, asset.TaskSourceSummary)
 		}
 	}
