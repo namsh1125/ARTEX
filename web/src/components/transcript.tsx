@@ -182,7 +182,7 @@ function toolInputText(tool: string, raw: string): string {
 }
 
 // InterceptCard renders an inline intercept_request approval card. The pending_id
-// is extracted from the summary (format: "工具 X 请求审批 (#N)") so buttons are
+// 요약의 도구 승인 요청 형식에서 추출하여 버튼을
 // available immediately without waiting for the detail load.
 function InterceptCard({
   step,
@@ -191,7 +191,7 @@ function InterceptCard({
   step: Activity;
   getDetail: (seq: number) => Promise<string>;
 }) {
-  // extract pending_id from summary: "工具 Bash 请求审批 (#42)"
+  // 기존 중국어 도구 승인 요청 요약에서 pending_id를 추출합니다.
   const pendingId = React.useMemo(() => {
     const m = /\(#(\d+)\)/.exec(step.summary);
     return m ? parseInt(m[1], 10) : null;
@@ -382,7 +382,7 @@ function ToolBlock({
   const rawCmd =
     use && use.summary.startsWith(toolName) ? use.summary.slice(toolName.length).trimStart() : (use?.summary ?? "");
   const cmd = toolInputText(toolName, rawCmd);
-  // status only — the full result lives behind the expand (【输出】), not previewed inline
+  // 상태만 표시하며 전체 출력은 펼친 영역 안에서 보여 줍니다.
   const statusText = running ? "실행 중…" : ok ? "✓" : "✕ 실패";
 
   // key over the seqs we'd load; changes when the result (or command) arrives.
