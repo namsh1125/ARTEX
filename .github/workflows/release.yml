@@ -4,10 +4,10 @@ on:
     tags: ["v*"]
 
 permissions:
-  contents: write # 创建 Release 需要
+  contents: write # Release 생성에 필요
 
 jobs:
-  # ① 前端静态导出（一次），产物给交叉编译各平台复用
+  # ① 프런트엔드를 한 번 정적 내보내기하고 플랫폼별 교차 컴파일에서 재사용
   frontend:
     runs-on: ubuntu-latest
     steps:
@@ -26,7 +26,7 @@ jobs:
           name: web-dist
           path: web/out
 
-  # ② 五平台交叉编译（内嵌前端）+ 打 zip
+  # ② 5개 플랫폼 교차 컴파일(프런트엔드 포함) 및 zip 패키징
   binaries:
     needs: frontend
     runs-on: ubuntu-latest
@@ -55,8 +55,8 @@ jobs:
           ARTEX_BUILD_VERSION: ${{ github.ref_name }}
           ARTEX_SKIP_FRONTEND: "1"
           ARTEX_SKIP_NPM_CI: "1"
-          # UPX 自解压 ELF 在部分 Linux 内核、虚拟化和安全策略下会崩溃。
-          # Release 使用 Go linker 裁剪和 zip 压缩，优先保证可移植性。
+          # UPX 자체 압축 해제 ELF는 일부 Linux 커널, 가상화 환경, 보안 정책에서 비정상 종료될 수 있습니다.
+          # Release는 이식성을 우선하여 Go 링커 최적화와 zip 압축을 사용합니다.
           ARTEX_COMPRESS: "0"
           ARTEX_PACKAGE: "1"
           ARTEX_PACKAGE_DIR: dist
@@ -69,14 +69,14 @@ jobs:
         with:
           name: pkg-${{ matrix.goos }}-${{ matrix.goarch }}
           path: "dist/*.zip"
-      # Linux 生二进制单独上传，供 docker job 复用（免在镜像里重编前端+Go）
+      # Linux 바이너리를 별도 업로드하여 docker 작업에서 재사용(이미지 안에서 프런트엔드와 Go를 다시 빌드하지 않음)
       - if: matrix.goos == 'linux'
         uses: actions/upload-artifact@v4
         with:
           name: bin-linux-${{ matrix.goarch }}
           path: dist/artex-linux-${{ matrix.goarch }}/artex
 
-  # ③ 汇总所有 zip → 创建 GitHub Release
+  # ③ 모든 zip을 모아 GitHub Release 생성
   release:
     needs: binaries
     runs-on: ubuntu-latest
@@ -96,13 +96,13 @@ jobs:
             dist/SHA256SUMS
           generate_release_notes: true
 
-  # ④ 多架构镜像 → 推 Docker Hub（复用 binaries 编好的 Linux 二进制，
-  #    镜像里只装工具 + 放二进制；arm64 仅需模拟 apt 层，构建快很多）
+  # ④ 다중 아키텍처 이미지를 Docker Hub에 업로드(binaries 작업의 Linux 바이너리 재사용,
+  #    이미지에는 도구와 바이너리만 설치. arm64는 apt 계층만 에뮬레이션하므로 빌드가 빠름)
   docker:
     needs: binaries
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4 # 取 Dockerfile 与 skills/
+      - uses: actions/checkout@v4 # Dockerfile과 skills/ 가져오기
       - uses: actions/download-artifact@v4
         with:
           name: bin-linux-amd64
