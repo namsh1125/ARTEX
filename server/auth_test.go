@@ -7,19 +7,19 @@ import (
 	"testing"
 )
 
-// GetSetting 对"键不存在"和"读取出错"的返回值只差一个 error：两种情况 value 都是
-// 空串。密码相关的 handler 一旦把 error 当成"还没设置密码"，就会在数据库抖动期间
-// 敞开初始化入口——authInit 会放行一个未认证请求去覆盖已有的管理员密码，
-// authStatus 则会把前端直接送到 /setup 去照着做这件事。
+// GetSetting은 키 없음과 읽기 실패에서 모두 빈 값을 반환하며 error만 다르다.
+// 비밀번호 handler가 오류를 미설정으로 취급하면 DB 장애 중 초기화가 열려
+// authInit이 인증 없는 요청으로 기존 관리자 비밀번호를 덮어쓰도록 허용하고
+// authStatus는 UI를 /setup으로 보내 같은 작업을 유도한다.
 //
-// 这两个测试把 handler 的连接池关掉来制造读取失败，断言两处都 fail closed。
+// 두 테스트는 연결 풀을 닫아 읽기를 실패시키고 두 handler가 안전하게 거부하는지 확인한다.
 func TestAuthStatusFailsClosedWhenDataSourceUnavailable(t *testing.T) {
 	m, err := NewManager(t.TempDir(), "")
 	if err != nil {
 		t.Skipf("postgres unavailable (%v)", err)
 	}
 	defer m.Close()
-	// 关掉池子，让后续 GetSetting 返回 error 而不是 sql.ErrNoRows。
+	// 연결 풀을 닫아 이후 GetSetting이 sql.ErrNoRows가 아닌 오류를 반환하게 한다.
 	if err := m.pg.Close(); err != nil {
 		t.Fatal(err)
 	}
@@ -29,13 +29,13 @@ func TestAuthStatusFailsClosedWhenDataSourceUnavailable(t *testing.T) {
 	s.authStatus(w, httptest.NewRequest("GET", "/api/auth/status", nil))
 
 	if w.Code != 503 {
-		t.Fatalf("status=%d want 503 (读失败被当成未初始化会把用户送去 /setup 覆盖密码); body=%s", w.Code, w.Body.String())
+		t.Fatalf("status=%d want 503 (읽기 실패를 미초기화로 취급하면 /setup에서 비밀번호를 덮어쓸 수 있음); body=%s", w.Code, w.Body.String())
 	}
 	var payload struct {
 		Initialized *bool `json:"initialized"`
 	}
 	if err := json.Unmarshal(w.Body.Bytes(), &payload); err == nil && payload.Initialized != nil {
-		t.Fatalf("读失败时不应回答 initialized，得到 %v", *payload.Initialized)
+		t.Fatalf("읽기 실패 시 initialized를 응답하면 안 됨, 실제 %v", *payload.Initialized)
 	}
 }
 
@@ -55,10 +55,10 @@ func TestAuthInitFailsClosedWhenDataSourceUnavailable(t *testing.T) {
 	s.authInit(w, httptest.NewRequest("POST", "/api/auth/init", body))
 
 	if w.Code != 503 {
-		t.Fatalf("status=%d want 503 (读失败时放行会让未认证请求覆盖已有密码); body=%s", w.Code, w.Body.String())
+		t.Fatalf("status=%d want 503 (읽기 실패를 허용하면 인증 없이 기존 비밀번호를 덮어쓸 수 있음); body=%s", w.Code, w.Body.String())
 	}
 	if strings.Contains(w.Body.String(), "token") {
-		t.Fatalf("读失败时不应签发 token: %s", w.Body.String())
+		t.Fatalf("읽기 실패 시 토큰을 발급하면 안 됨: %s", w.Body.String())
 	}
 }
 
@@ -67,13 +67,13 @@ func TestValidatePassword(t *testing.T) {
 		name, pw string
 		wantErr  bool
 	}{
-		{"空", "", true},
-		{"七位", "1234567", true},
-		{"八位", "12345678", false},
-		{"八个汉字按字符数而非字节数计", "密码密码密码密码", false},
-		{"三个汉字够 9 字节但只有 3 个字符", "密码强", true},
-		{"72 字节", strings.Repeat("a", 72), false},
-		{"73 字节超出 bcrypt 上限", strings.Repeat("a", 73), true},
+		{"빈 값", "", true},
+		{"7자", "1234567", true},
+		{"8자", "12345678", false},
+		{"한자 8개는 바이트가 아닌 문자 수로 계산", "密码密码密码密码", false},
+		{"한자 3개는 9바이트지만 3문자", "密码强", true},
+		{"72바이트", strings.Repeat("a", 72), false},
+		{"73바이트는 bcrypt 상한 초과", strings.Repeat("a", 73), true},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			if got := validatePassword(tc.pw); (got != "") != tc.wantErr {
