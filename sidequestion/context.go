@@ -91,6 +91,7 @@ func (b *contextBuilder) summarize(ctx context.Context, prior, text string) (str
 			return "", errors.New("별도 질문의 컨텍스트 정리가 이번 처리 한도에 도달했습니다. 질문 범위를 줄여 다시 시도하세요")
 		}
 		overhead := EstimateInputTokens(llm.CompletionRequest{System: []string{summaryInstruction}, Messages: []llm.Message{llm.UserText("[이전 요약]\n" + prior + "\n[새 자료 조각]\n")}})
+		// 요청 조각을 합칠 때 발생하는 토큰 추정 반올림 오차를 위해 4토큰을 남긴다.
 		chunkBytes := min(32000, b.window-2048-overhead-512-4) * 3
 		if chunkBytes < 1024 {
 			return "", ErrContextBudget
