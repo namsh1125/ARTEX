@@ -17,8 +17,8 @@ export default function SetupPage() {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const [checking, setChecking] = useState(true);
-  // 查不到初始化状态时不能默认当成"未初始化"——那样会把初始化表单摆给一个
-  // 其实已经设过密码的实例，用户照着填就会覆盖掉原密码。此时关闭入口。
+  // 초기화 상태를 조회하지 못했을 때 미초기화로 간주하면 기존 암호가 있는 인스턴스에
+  // 초기화 폼이 표시되어 암호를 덮어쓸 수 있으므로 진입을 차단합니다.
   const [unavailable, setUnavailable] = useState(false);
 
   useEffect(() => {
