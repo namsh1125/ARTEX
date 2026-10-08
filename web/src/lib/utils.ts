@@ -5,16 +5,16 @@ export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
 
-// 抽屉/对话框(Sheet/Dialog)的 onInteractOutside 关闭判定辅助。
+// Sheet/Dialog의 onInteractOutside 닫힘 판단 보조 함수.
 //
-// 背景:抽屉内的 Radix 弹层(Select 下拉、DropdownMenu、Popover 等)会 portal 到抽屉
-// 之外。开着弹层时点遮罩/抽屉外想收起它,这一次 pointerdown 会被 Select 和 Sheet 两个
-// DismissableLayer 同时处理;Select 先关闭且是 discrete 事件、React 会同步 flush,于是
-// 轮到 Sheet 的处理器时弹层的 data-state 早已翻成 closed —— 在"当下"检测弹层是否打开
-// 天然不可靠(实测已验证)。
+// 서랍 내부의 Radix Select/DropdownMenu/Popover는 서랍 밖으로 포털됩니다.
+// 팝오버를 닫으려고 배경을 누르면 Select와 Sheet의 DismissableLayer가 같은 pointerdown을 처리합니다.
+// Select가 먼저 닫히고 discrete 이벤트로 React가 즉시 flush하므로
+// Sheet 처리 시에는 이미 data-state가 closed입니다. 따라서 그 시점에 열린 상태를
+// 검사하는 방식은 신뢰할 수 없으며 실제 테스트로 확인했습니다.
 //
-// 正确做法:Radix 的 pointerdown 监听在冒泡阶段;我们在 capture 阶段(早于它)先把
-// "此刻有没有弹层开着"记录下来,onInteractOutside 再读这个记录值来决定是否放行关闭。
+// Radix는 버블링 단계에서 pointerdown을 처리하므로 그보다 앞선 capture 단계에서
+// 열린 팝오버 유무를 기록하고 onInteractOutside에서 그 기록으로 닫힘 여부를 판단합니다.
 function isRadixOverlayOpenNow(): boolean {
   if (typeof document === "undefined") return false;
   return !!document.querySelector(
@@ -39,22 +39,22 @@ if (typeof document !== "undefined") {
   );
 }
 
-// radixOverlayWasOpenAtPointerDown 返回"最近一次 pointerdown 发生时是否有 Radix 弹层
-// 开着"。抽屉/对话框据此:开着弹层时点遮罩 → 只收弹层、不关自身。
+// radixOverlayWasOpenAtPointerDown은 최근 pointerdown 당시 Radix 팝오버가 열려 있었는지 반환합니다.
+// 이를 이용해 팝오버가 열린 상태에서 배경 클릭 시 팝오버만 닫고 서랍/모달은 유지합니다.
 export function radixOverlayWasOpenAtPointerDown(): boolean {
   return overlayOpenAtLastPointerDown;
 }
 
-// copyText 把文本写入剪贴板,返回是否成功。
-// 背景:navigator.clipboard 仅在安全上下文(HTTPS / localhost)可用;通过 IP + HTTP
-// 访问时它为 undefined,此时降级到 execCommand("copy")。
+// copyText는 클립보드에 텍스트를 쓰고 성공 여부를 반환합니다.
+// navigator.clipboard는 HTTPS/localhost에서만 제공되며 IP+HTTP에서는
+// undefined이므로 execCommand("copy")로 대체합니다.
 export async function copyText(text: string): Promise<boolean> {
   if (navigator.clipboard && window.isSecureContext) {
     try {
       await navigator.clipboard.writeText(text);
       return true;
     } catch {
-      // 继续走降级方案
+      // 대체 방식으로 계속 진행합니다.
     }
   }
   try {
