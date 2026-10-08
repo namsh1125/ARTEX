@@ -211,7 +211,7 @@ const CONFIG = {
   neutralizeVueRouter: true,
   observe: { storageReads: false, cookieReads: false, xhrHeaders: true },
   neutralize: { fields: ['response_code', 'code'], success: 0 },
-  stubs: [ /* 同 config.json stubs */ ],
+  stubs: [ /* config.json의 stubs와 동일 */ ],
   apiPattern: /\/(api|apis|v\d+|dev|internal|graphql)\//i,
 };
 ```
@@ -327,7 +327,7 @@ grep -rhoaE 'getResultTree|role_permissions|permissions/all' js | head
 
 ```bash
 python3 scripts/extract_route_map.py recon/js recon/
-# 产出 recon/route_map.json
+# recon/route_map.json 생성
 ```
 
 `[!] no routeMap pattern found`이면 `extract_route_map.py`의 정규식을 넓히거나 수동 grep합니다.
@@ -357,9 +357,9 @@ python3 scripts/build_perm_tree.py recon/js recon/ --config recon/config.json
 ### I4. stub 일관성 검증
 
 ```bash
-# permissions 数量应 ≈ userRouteAuth 条目数
+# permissions 수는 userRouteAuth 항목 수와 비슷해야 합니다.
 wc -l recon/perm_codes_all.txt
-# routes 应覆盖 route_map 全部 link
+# routes는 route_map의 모든 링크를 포함해야 합니다.
 python3 -c "import json; m=json.load(open('recon/route_map.json')); r=set(json.load(open('recon/config.json'))['routes']); print('missing', [v['link'] for v in m.values() if v['link'] not in r])"
 ```
 
@@ -367,7 +367,7 @@ python3 -c "import json; m=json.load(open('recon/route_map.json')); r=set(json.l
 
 ```bash
 node recon/runtime_harvest.js recon/config.json
-# 对比 forge 前后 runtime_api.json 条数；检查 /attack、/asset 等是否出现模块 API
+# 모의 값 구성 전후 runtime_api.json 개수 비교. /attack, /asset 등의 모듈 API 확인
 ```
 
 | 모의 값 구성 전 | 구성 후(성공) |
@@ -392,7 +392,7 @@ node recon/runtime_harvest.js recon/config.json
 ### J1. 기준점 주변 범위 확장 — 경로에서 요청 구성 객체 찾기
 
 ```bash
-# 以 Phase 1 已知 path 为锚
+# Phase 1에서 확인한 경로를 기준점으로 사용
 grep -n '"/api/user/list"' js/*.js
 grep -rhoaE '.{0,120}("/api[^"]+").{0,200}' js | head
 grep -rhoaE '(params|data|body|payload)\s*:\s*\{' js | head
@@ -402,7 +402,7 @@ grep -rhoaE '(get|post|put|delete|patch)\([^,]+,\s*\{' js | head
 ### J2. 래퍼 계층과 전송 형태
 
 ```bash
-# axios / 统一 request
+# axios / 공통 request
 grep -rhoaE '(axios|request)\.(get|post|put|delete|patch)\(' js | head
 grep -rhoaE 'interceptors\.(request|response)' js | head
 
@@ -413,7 +413,7 @@ grep -rhoaE '\$[a-zA-Z_]+\s*:\s*(Int|String|Boolean|\[)' js | head
 # FormData / multipart
 grep -rhoaE 'FormData|\.append\(' js | head
 
-# 路径参数
+# 경로 매개변수
 grep -rhoaE 'path:\s*"/[^"]*:[^"]+"' js | head
 grep -rhoaE 'useParams|route\.params|\$route\.params' js | head
 ```

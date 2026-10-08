@@ -1,27 +1,27 @@
 @echo off
-rem 控制台切 UTF-8，否则本文件里的中文在 GBK 终端下是乱码。
+rem 비 ASCII 문자가 깨지지 않도록 콘솔을 UTF-8로 전환합니다.
 chcp 65001 >nul 2>&1
-rem ARTEX 守护启动脚本（Windows）
+rem ARTEX 감시 실행 스크립트(Windows)
 rem
-rem 用法：
-rem   start.bat                  前台运行（Ctrl-C 停止）
-rem   start.bat -addr :9000      额外参数原样透传给 artex
+rem 사용법:
+rem   start.bat                 포그라운드 실행(Ctrl-C로 중지)
+rem   start.bat -addr :9000      추가 인자를 artex에 그대로 전달
 rem
-rem 它只做一件事：把 artex.exe 跑起来，进程退出后按退出码决定要不要再拉起。
+rem artex.exe를 실행하고 종료 코드에 따라 재시작 여부만 결정합니다.
 rem
-rem   0      用户正常停止     -> 退出循环
-rem   75     程序请求重启     -> 立刻重跑（页面点了"一键更新"或"回滚"）
-rem   其他   崩溃             -> 退避后重跑（1->2->4…最多 60 秒）
+rem   0      사용자의 정상 종료 -> 반복 종료
+rem   75     프로그램 재시작 요청 -> 즉시 재실행(페이지의 원클릭 업데이트 또는 롤백)
+rem   기타   비정상 종료 -> 백오프 후 재실행(1->2->4…최대 60초)
 rem
-rem 下载、SHA256 校验、换装都不在这里，全部由 artex 自己在启动时完成
-rem （selfupdate 包）。脚本保持傻瓜化，详见 start.sh 顶部的说明。
+rem 다운로드, SHA256 검증, 교체는 artex가 시작 시 selfupdate 패키지에서 처리합니다.
+rem 스크립트는 단순하게 유지합니다. 자세한 내용은 start.sh 상단 설명을 참조하세요.
 
 setlocal enabledelayedexpansion
 cd /d "%~dp0"
 
 set "BIN=artex.exe"
 if not exist "%BIN%" (
-	echo [artex] 找不到可执行文件 %BIN% 1>&2
+	echo [artex] 실행 파일을 찾을 수 없습니다: %BIN% 1>&2
 	exit /b 1
 )
 
@@ -34,19 +34,19 @@ set /a delay=1
 set "code=!ERRORLEVEL!"
 
 if "!code!"=="0" (
-	echo [artex] 正常退出
+	echo [artex] 정상 종료
 	exit /b 0
 )
 
 if "!code!"=="%RESTART_CODE%" (
-	rem 更新/回滚已就绪：重跑后 artex 会在启动时完成换装。
-	echo [artex] 请求重启（应用新版本）…
+	rem 업데이트/롤백 준비 완료: 재시작 시 artex가 교체를 완료합니다.
+	echo [artex] 재시작 요청(새 버전 적용)…
 	set /a delay=1
 	goto loop
 )
 
-echo [artex] 异常退出 ^(code=!code!^)，!delay!s 后重启 1>&2
-rem timeout 在被重定向的控制台里会失败，用 ping 兜底（延时 N 秒需要 N+1 次）。
+echo [artex] 비정상 종료 ^(code=!code!^), !delay!초 후 재시작 1>&2
+rem 리디렉션된 콘솔에서는 timeout이 실패하므로 ping 사용(N초 대기는 N+1회 필요).
 set /a pings=!delay!+1
 ping -n !pings! 127.0.0.1 >nul 2>&1
 set /a delay=!delay!*2

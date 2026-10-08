@@ -7,28 +7,28 @@ import (
 )
 
 func TestTruncateBytesKeepsValidUTF8(t *testing.T) {
-	// 这是本包最要紧的一条不变量。企微按**字节**限长，中文 3 字节/字，
-	// 任何按字节硬切的实现都会把汉字切成半个，产出非法 UTF-8 而被平台拒收。
-	// 用长度互质的多种中英混排输入去撞每一个可能的切点。
+	// 핵심 불변 조건: WeCom은 바이트 기준이며 한글/한자는 보통 3바이트이므로
+	// 바이트로 단순 자르면 문자가 반으로 잘려 잘못된 UTF-8로 거부될 수 있습니다.
+	// 길이가 서로소인 여러 다국어 혼합 입력으로 가능한 절단 지점을 모두 검사합니다.
 	inputs := []string{
 		"中文测试内容",
 		"混合 mixed 内容 content",
 		"a中b文c测d试e",
-		"🔴🟠🟡🔵", // 4 字节 emoji，切错更明显
+		"🔴🟠🟡🔵", // 4바이트 이모지는 잘못 자르면 더 명확하게 드러남
 		strings.Repeat("漏洞", 100),
 	}
 	for _, in := range inputs {
 		for max := 1; max <= len(in)+2; max++ {
 			got := TruncateBytes(in, max)
 			if !utf8.ValidString(got) {
-				t.Fatalf("输入 %q max=%d: 产出非法 UTF-8 %q", in, max, got)
+				t.Fatalf("입력 %q max=%d: 유효하지 않은 UTF-8 %q", in, max, got)
 			}
 			if len(got) > max {
-				t.Fatalf("输入 %q max=%d: 结果 %d 字节超出上限", in, max, len(got))
+				t.Fatalf("입력 %q max=%d: 결과 %d바이트가 한도 초과", in, max, len(got))
 			}
-			// 未被截断时不得改动内容。
+			// 잘리지 않았으면 내용을 바꾸면 안 됩니다.
 			if len(in) <= max && got != in {
-				t.Fatalf("输入 %q max=%d: 未超限却改动了内容 -> %q", in, max, got)
+				t.Fatalf("입력 %q max=%d: 한도 이내인데 내용 변경 -> %q", in, max, got)
 			}
 		}
 	}
@@ -37,114 +37,114 @@ func TestTruncateBytesKeepsValidUTF8(t *testing.T) {
 func TestTruncateBytesZeroMeansUnlimited(t *testing.T) {
 	long := strings.Repeat("x", 10000)
 	if got := TruncateBytes(long, 0); got != long {
-		t.Fatal("max=0 应表示不限制")
+		t.Fatal("max=0은 무제한이어야 합니다")
 	}
 	if got := TruncateBytes(long, -5); got != long {
-		t.Fatal("max<0 应表示不限制")
+		t.Fatal("max<0은 무제한이어야 합니다")
 	}
 }
 
 func TestTruncateBytesEllipsisBudget(t *testing.T) {
-	// max 小于省略号本身时，不能因为追加省略号而反过来超限。
+	// max가 말줄임표보다 작을 때 추가 때문에 한도를 넘으면 안 됩니다.
 	got := TruncateBytes("abcdefgh", 1)
 	if len(got) > 1 {
-		t.Fatalf("max=1 时结果 %q 长度 %d 超限", got, len(got))
+		t.Fatalf("max=1 결과 %q 길이 %d가 한도 초과", got, len(got))
 	}
-	// 正常情况应带省略号。
+	// 일반적인 잘림에는 말줄임표가 있어야 합니다.
 	if got := TruncateBytes("abcdefgh", 5); !strings.HasSuffix(got, ellipsis) {
-		t.Fatalf("期望带省略号，得到 %q", got)
+		t.Fatalf("말줄임표 예상, 실제 %q", got)
 	}
 }
 
 func TestTruncateRunesCountsCharactersNotBytes(t *testing.T) {
-	// 与 TruncateBytes 的口径差异必须保留：Telegram 按字符限长，
-	// 用字节口径会把中文消息切到只剩三分之一。
+	// Telegram은 문자 수 기준이므로 TruncateBytes와의 차이를 유지해야 합니다.
+	// 바이트 기준이면 한글/한자 메시지가 약 1/3로 줄어듭니다.
 	s := "一二三四五六七八九十"
 	got := TruncateRunes(s, 5)
 	if n := utf8.RuneCountInString(got); n != 5 {
-		t.Fatalf("期望 5 个字符，得到 %d 个 (%q)", n, got)
+		t.Fatalf("5자 예상, 실제 %d자(%q)", n, got)
 	}
-	// 同样的字符串按字节口径应明显更短。
+	// 같은 문자열을 바이트로 제한하면 확실히 짧아야 합니다.
 	if utf8.RuneCountInString(TruncateBytes(s, 5)) >= 5 {
-		t.Fatal("字节口径不应产出与字符口径相同的字符数")
+		t.Fatal("바이트/문자 기준 결과의 문자 수가 같으면 안 됩니다")
 	}
 }
 
 func TestOneLineCollapsesWhitespace(t *testing.T) {
-	got := OneLine("第一行\n\n第二行\t带制表   多空格", 0)
+	got := OneLine("첫째 줄\n\n둘째 줄\t탭 포함   여러 공백", 0)
 	if strings.ContainsAny(got, "\n\t") {
-		t.Fatalf("应折叠所有空白，得到 %q", got)
+		t.Fatalf("모든 공백을 접어야 함, 실제 %q", got)
 	}
 	if strings.Contains(got, "  ") {
-		t.Fatalf("不应保留连续空格，得到 %q", got)
+		t.Fatalf("연속 공백이 없어야 함, 실제 %q", got)
 	}
-	// 截断后仍须可读且合法。
+	// 잘린 뒤에도 읽을 수 있고 유효해야 합니다.
 	got = OneLine("一二三四五六七八九十", 4)
 	if n := utf8.RuneCountInString(got); n != 4 {
-		t.Fatalf("期望 4 字符，得到 %d (%q)", n, got)
+		t.Fatalf("4자 예상, 실제 %d(%q)", n, got)
 	}
 }
 
 func TestTruncateHTMLNeverCutsTagInHalf(t *testing.T) {
-	// 直接截断 HTML 会切出 `<a href="htt` 这种残片，平台会拒收整条消息。
-	s := `<b>标题</b>正文正文正文<a href="https://example.com/very/long/path">查看详情</a>`
+	// HTML을 직접 자르면 불완전한 태그가 남아 플랫폼이 전체를 거부할 수 있습니다.
+	s := `<b>제목</b>본문본문본문<a href="https://example.com/very/long/path">상세 보기</a>`
 	for max := 1; max <= utf8.RuneCountInString(s)+2; max++ {
 		got := TruncateHTML(s, max)
 		if n := utf8.RuneCountInString(got); max > 0 && n > max {
-			t.Fatalf("max=%d: 结果 %d 字符超限", max, n)
+			t.Fatalf("max=%d: 결과 %d자가 한도 초과", max, n)
 		}
-		// 尾部不能有未闭合的 `<`（即最后一段里出现 `<` 却无 `>`）。
+		// 끝에 > 없이 <만 있는 불완전한 태그가 없어야 합니다.
 		if lt := strings.LastIndex(got, "<"); lt >= 0 && !strings.Contains(got[lt:], ">") {
-			t.Fatalf("max=%d: 尾部标签被切断 -> %q", max, got)
+			t.Fatalf("max=%d: 끝 태그가 잘림 -> %q", max, got)
 		}
 	}
 }
 
 func TestAssetLineOmitsExcess(t *testing.T) {
 	if got := assetLine(nil, 3); got != "" {
-		t.Fatalf("无资产应返回空串，得到 %q", got)
+		t.Fatalf("자산이 없으면 빈 문자열 예상, 실제 %q", got)
 	}
 	if got := assetLine([]string{"a", "b"}, 3); got != "a、b" {
-		t.Fatalf("未超限应全列，得到 %q", got)
+		t.Fatalf("한도 이내면 전체 표시 예상, 실제 %q", got)
 	}
-	// 超出上限时必须标注总数，否则读者不知道还有多少资产没列出来。
+	// 초과 시 전체 자산 수를 알려 생략량을 알 수 있게 합니다.
 	got := assetLine([]string{"a", "b", "c", "d", "e"}, 2)
-	if !strings.Contains(got, "等 5 个") {
-		t.Fatalf("应标注总数 5，得到 %q", got)
+	if !strings.Contains(got, "등 5개") {
+		t.Fatalf("총수 5를 표시해야 함, 실제 %q", got)
 	}
 }
 
 func TestSeverityAndStatusLabels(t *testing.T) {
 	if AtLeast("", "low") {
-		t.Fatal("空级别序数为 0，应被任何门槛挡住")
+		t.Fatal("빈 등급은 순번 0이므로 모든 한도에 차단되어야 합니다")
 	}
 	if !AtLeast("critical", "") {
-		t.Fatal("空门槛应放行")
+		t.Fatal("빈 한도는 허용해야 합니다")
 	}
-	if got := StatusLabel("fixed"); got != "已修复" {
-		t.Fatalf("未知状态映射，得到 %q", got)
+	if got := StatusLabel("fixed"); got != "수정됨" {
+		t.Fatalf("상태 매핑 오류, 실제 %q", got)
 	}
-	// 未知状态原样回显，不臆造标签。
+	// 알 수 없는 상태는 이름을 지어내지 않고 그대로 반환합니다.
 	if got := StatusLabel("weird_status"); got != "weird_status" {
-		t.Fatalf("未知状态应原样回显，得到 %q", got)
+		t.Fatalf("알 수 없는 상태는 그대로 반환해야 함, 실제 %q", got)
 	}
 }
 
-// TestTruncateHTMLNeverCutsEntity 覆盖审计指出的一处遗漏：截断不只要避开
-// 半截标签，还要避开被切断的 HTML 实体。
+// TestTruncateHTMLNeverCutsEntity는 불완전한 태그뿐 아니라 잘린 HTML 엔터티도
+// 피해야 한다는 검토 결과를 검증합니다.
 //
-// `&amp;` 被切成 `&amp` 之后，一个只认实体的解析器可能拒收**整条**消息——
-// 而超长汇总消息本来就常见，代价太大。
+// &amp;가 &amp로 잘리면 엔터티 파서가 전체 메시지를 거부할 수 있으며
+// 긴 요약에서 흔히 생길 수 있어 방지해야 합니다.
 func TestTruncateHTMLNeverCutsEntity(t *testing.T) {
 	s := "aaaa&amp;bbbb&lt;cccc&quot;dddd"
 	for max := 1; max <= utf8.RuneCountInString(s)+2; max++ {
 		got := TruncateHTML(s, max)
-		// 尾部不得出现「有 & 但没有对应 ;」的实体残片。
+		// 끝에 &만 있고 대응 ;가 없는 엔터티 조각이 없어야 합니다.
 		if amp := strings.LastIndex(got, "&"); amp >= 0 && !strings.Contains(got[amp:], ";") {
-			t.Fatalf("max=%d: 尾部留下实体残片 %q", max, got[amp:])
+			t.Fatalf("max=%d: 끝에 엔터티 조각 %q가 남음", max, got[amp:])
 		}
 		if strings.Contains(got, "&amp\x00") {
-			t.Fatalf("max=%d: 出现畸形实体", max)
+			t.Fatalf("max=%d: 잘못된 엔터티 발생", max)
 		}
 	}
 }

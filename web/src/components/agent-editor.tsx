@@ -28,12 +28,12 @@ import { api } from "@/lib/api";
 import { cn } from "@/lib/utils";
 import type { Agent, AgentDetail, AgentTrigger, MCPServer, PromptVar, PromptVersion, Settings, SkillItem, Tool } from "@/lib/types";
 
-// Traffic tools are host tools gated by the global 流量捕获 switch: bindable, but
+// 트래픽 도구는 전역 트래픽 캡처 스위치로 제어되는 호스트 도구이며 연결할 수 있지만,
 // only usable when capture is on. Keep this list in sync with traffic.SeedToolMetas.
 const TRAFFIC_TOOL_KEYS = new Set(["traffic_search", "traffic_get"]);
 
 // AgentEditor is the tabbed editor for one agent, used inside the agents-page
-// drawer (and reused full-page for deep links). Tabs: 配置与提示词 / MCP / Skill /
+// 서랍(직접 링크에서는 전체 페이지로 재사용). 탭: 설정·프롬프트 / MCP / 스킬 /
 // Tools. Config + prompt save as before; visibility + tool bindings toggle live.
 export function AgentEditor({ agentKey, onSaved }: { agentKey: string; onSaved?: () => void }) {
   const [detail, setDetail] = React.useState<AgentDetail | null>(null);
@@ -52,7 +52,7 @@ export function AgentEditor({ agentKey, onSaved }: { agentKey: string; onSaved?:
   const [preview, setPreview] = React.useState("");
   const [maxTurns, setMaxTurns] = React.useState("0");
   const [runSecs, setRunSecs] = React.useState("600");
-  // "" = 跟随(未绑定)；否则为 profile id 字符串
+  // 빈 문자열은 따르기(연결 없음), 그 외에는 profile ID 문자열입니다.
   const [llmProfileId, setLlmProfileId] = React.useState("");
   const [llmProfiles, setLlmProfiles] = React.useState<NonNullable<AgentDetail["llm_profiles"]>>([]);
   const [webSearch, setWebSearch] = React.useState(false);
@@ -61,7 +61,7 @@ export function AgentEditor({ agentKey, onSaved }: { agentKey: string; onSaved?:
   const [wrapupDefault, setWrapupDefault] = React.useState("");
   const [wrapupTurns, setWrapupTurns] = React.useState("0");
   const [wrapupTurnsDefault, setWrapupTurnsDefault] = React.useState(5);
-  // 任务级超时收尾词(仅 worker/planner)
+  // 작업 시간 초과 종료 프롬프트(worker/planner 전용)
   const [ttSupported, setTtSupported] = React.useState(false);
   const [ttWrapup, setTtWrapup] = React.useState("");
   const [ttWrapupDefault, setTtWrapupDefault] = React.useState("");
@@ -75,7 +75,7 @@ export function AgentEditor({ agentKey, onSaved }: { agentKey: string; onSaved?:
     api.tools().then(setTools).catch(() => {});
     api.settings().then(setSettings).catch(() => {});
   }, []);
-  // global gates: traffic tools need 流量捕获, web search needs the master switch.
+  // 전역 게이트: 트래픽 도구는 캡처, 웹 검색은 전체 검색 스위치가 필요합니다.
   const captureOn = !!settings?.traffic_capture;
   const webSearchGlobalOn = !!settings?.web_search_enabled;
 
@@ -133,7 +133,7 @@ export function AgentEditor({ agentKey, onSaved }: { agentKey: string; onSaved?:
   async function resetPrompt() {
     try {
       const r = await api.resetAgentPrompt(agentKey);
-      toast.success(`기본값으로 복원했습니다(v${r.version}）`);
+      toast.success(`기본값으로 복원했습니다(v${r.version})`);
       reload();
     } catch (e) {
       toast.error("복원 실패: " + (e as Error).message);
@@ -179,7 +179,7 @@ export function AgentEditor({ agentKey, onSaved }: { agentKey: string; onSaved?:
   }
   async function saveConfig() {
     try {
-      // 只提交本 agent 实际展示的字段，避免把未显示项(如 goals 的 max_turns)覆盖成默认。
+      // goals의 max_turns처럼 숨겨진 항목을 기본값으로 덮어쓰지 않도록 실제 표시 필드만 제출합니다.
       const patch: Parameters<typeof api.saveAgentConfig>[1] = {
         llm_profile_id: llmProfileId === "" ? null : Number(llmProfileId),
       };
@@ -260,9 +260,9 @@ export function AgentEditor({ agentKey, onSaved }: { agentKey: string; onSaved?:
   // web search applies to every conversational/executing agent except the one-shot
   // goals decomposer; it's gated by the global master switch.
   const showWebSearch = agentKey !== "goals";
-  // interactive shell (持久 PTY 会话工具族) 同样对除 goals 外的 agent 开放;无全局门控。
+  // 영구 PTY 세션 도구는 goals 외의 Agent에 제공하며 전역 게이트는 없습니다.
   const showInteractiveShell = agentKey !== "goals";
-  // 每个 agent(含 goals/mainagent)都跑在某个 LLM 上,故「默认模型」绑定对所有 agent 开放。
+  // goals/mainagent를 포함한 모든 Agent가 LLM을 사용하므로 기본 모델 연결도 모두 지원합니다.
   const showLLM = true;
   // triggers (P3) only attach to custom agents.
   const isCustom = !!detail && !detail.agent?.builtin;
@@ -278,7 +278,7 @@ export function AgentEditor({ agentKey, onSaved }: { agentKey: string; onSaved?:
         {isCustom && <TabsTrigger value="triggers">발생 조건</TabsTrigger>}
       </TabsList>
 
-      {/* 配置 + 提示词 */}
+      {/* 설정과 프롬프트 */}
       <TabsContent value="prompt" className="min-h-0 flex-1 overflow-y-auto px-4 pb-4">
         <div className="grid gap-4">
           {(showLLM || showConfig || showWebSearch || showInteractiveShell) && (
@@ -442,7 +442,7 @@ export function AgentEditor({ agentKey, onSaved }: { agentKey: string; onSaved?:
             </ul>
           </div>
 
-          {/* 查看版本 dialog */}
+          {/* 버전 보기 대화상자 */}
           <Dialog open={!!viewVer} onOpenChange={(o) => { if (!o) setViewVer(null); }}>
             <DialogContent className="sm:max-w-2xl">
               <DialogHeader>
@@ -481,7 +481,7 @@ export function AgentEditor({ agentKey, onSaved }: { agentKey: string; onSaved?:
             </DialogContent>
           </Dialog>
 
-          {/* 版本对比 dialog */}
+          {/* 버전 비교 대화상자 */}
           <Dialog open={!!diffVer} onOpenChange={(o) => { if (!o) setDiffVer(null); }}>
             <DialogContent className="sm:max-w-3xl">
               <DialogHeader>
@@ -499,7 +499,7 @@ export function AgentEditor({ agentKey, onSaved }: { agentKey: string; onSaved?:
         </div>
       </TabsContent>
 
-      {/* 收尾提示词 */}
+      {/* 종료 프롬프트 */}
       <TabsContent value="wrapup" className="min-h-0 flex-1 overflow-y-auto px-4 pb-4">
         <div className="grid gap-3">
           <p className="text-muted-foreground text-xs leading-relaxed">
@@ -589,7 +589,7 @@ export function AgentEditor({ agentKey, onSaved }: { agentKey: string; onSaved?:
         </div>
       </TabsContent>
 
-      {/* MCP 可见性 */}
+      {/* MCP 공개 범위 */}
       <TabsContent value="mcp" className="min-h-0 flex-1 overflow-y-auto px-4 pb-4">
         <p className="text-muted-foreground mb-3 text-xs">이 항목 선택: Agent 접근 가능한 MCP 서버.</p>
         <div className="grid gap-2">
@@ -604,7 +604,7 @@ export function AgentEditor({ agentKey, onSaved }: { agentKey: string; onSaved?:
         </div>
       </TabsContent>
 
-      {/* Skill 可见性 */}
+      {/* 스킬 공개 범위 */}
       <TabsContent value="skill" className="min-h-0 flex-1 overflow-y-auto px-4 pb-4">
         <p className="text-muted-foreground mb-3 text-xs">이 항목 선택: Agent 접근 가능한 Skill.</p>
         <div className="grid gap-2">
@@ -619,7 +619,7 @@ export function AgentEditor({ agentKey, onSaved }: { agentKey: string; onSaved?:
         </div>
       </TabsContent>
 
-      {/* Tools 绑定 */}
+      {/* 도구 연결 */}
       <TabsContent value="tools" className="min-h-0 flex-1 overflow-y-auto px-4 pb-4">
         <p className="text-muted-foreground mb-3 text-xs">이 항목에 연결할 도구 선택: Agent 기본 제공 도구.</p>
         <div className="grid gap-2">
@@ -662,7 +662,7 @@ export function AgentEditor({ agentKey, onSaved }: { agentKey: string; onSaved?:
         </div>
       </TabsContent>
 
-      {/* 触发(P3, 仅自定义 agent) */}
+      {/* 트리거(P3, 사용자 정의 Agent 전용) */}
       {isCustom && (
         <TabsContent value="triggers" className="min-h-0 flex-1 overflow-y-auto px-4 pb-4">
           <AgentTriggersTab agentKey={agentKey} agent={detail?.agent} />
@@ -727,12 +727,12 @@ function DiffView({ oldText, newText }: { oldText: string; newText: string }) {
 }
 
 // AgentTriggersTab manages a custom agent's P3 triggers: list + add + delete.
-// Each trigger fires (定时/发现finding/目标达成/任务超时/工具调用，可多选) → a new conversation runs
+// 트리거(일정/취약점 발견/목표 달성/작업 시간 초과/도구 호출, 다중 선택 가능)마다 새 대화를 실행합니다.
 // in parallel with the base user message + auto context appended by the backend.
 function AgentTriggersTab({ agentKey, agent }: { agentKey: string; agent?: Agent }) {
   const [triggers, setTriggers] = React.useState<AgentTrigger[]>([]);
   const [tools, setTools] = React.useState<Tool[]>([]);
-  // 触发后处理策略(每 agent);初值来自 agent detail,改动即保存。
+  // Agent별 트리거 후 처리 정책. 초기값은 상세에서 가져오며 변경 즉시 저장합니다.
   const [runMode, setRunMode] = React.useState<"serial" | "parallel">(agent?.trigger_run_mode ?? "serial");
   const [mergeMode, setMergeMode] = React.useState<"by_task" | "all" | "none">(agent?.trigger_merge_mode ?? "all");
   const [maxParallel, setMaxParallel] = React.useState(String(agent?.trigger_max_parallel ?? 5));
@@ -768,7 +768,7 @@ function AgentTriggersTab({ agentKey, agent }: { agentKey: string; agent?: Agent
   const [taskCreateMsg, setTaskCreateMsg] = React.useState("");
   const [toolNames, setToolNames] = React.useState<string[]>([]);
   const [saving, setSaving] = React.useState(false);
-  // null = 新增模式；非 null = 正在编辑该 id 的触发器。
+  // null은 생성 모드, 값이 있으면 해당 ID 트리거 편집 모드입니다.
   const [editingId, setEditingId] = React.useState<number | null>(null);
 
   const reload = React.useCallback(() => {
@@ -785,7 +785,7 @@ function AgentTriggersTab({ agentKey, agent }: { agentKey: string; agent?: Agent
     setToolNames((prev) => (prev.includes(key) ? prev.filter((k) => k !== key) : [...prev, key]));
   }
 
-  // resetForm 清空表单并回到「新增」模式。
+  // resetForm은 폼을 비우고 생성 모드로 돌아갑니다.
   function resetForm() {
     setEditingId(null);
     setOnInterval(false);
@@ -804,7 +804,7 @@ function AgentTriggersTab({ agentKey, agent }: { agentKey: string; agent?: Agent
     setToolNames([]);
   }
 
-  // startEdit 把某条已有触发器灌进表单,进入「编辑」模式。
+  // startEdit은 기존 트리거를 폼에 채워 편집 모드로 전환합니다.
   function startEdit(t: AgentTrigger) {
     setEditingId(t.id);
     setOnInterval(t.interval_sec > 0);
@@ -823,7 +823,7 @@ function AgentTriggersTab({ agentKey, agent }: { agentKey: string; agent?: Agent
     setToolNames(t.tool_names ?? []);
   }
 
-  // submit 依 editingId 走「新增」或「保存修改」;编辑时保留该触发器的启用状态。
+  // submit은 editingId에 따라 생성/수정하며 편집 시 활성화 상태를 유지합니다.
   async function submit() {
     const n = onInterval ? Math.max(1, Math.floor(Number(intervalSec) || 0)) : 0;
     if (n === 0 && !onFinding && !onGoalMet && !onTaskTimeout && !onToolCall && !onTaskCreate) {
@@ -918,7 +918,7 @@ function AgentTriggersTab({ agentKey, agent }: { agentKey: string; agent?: Agent
         여러 조건을 선택할 수 있습니다. 시스템은 「이번 트리거 발생 사유 + 관련 작업/finding/목표」를 작성한 기본 메시지 뒤에 자동으로 추가합니다.
       </p>
 
-      {/* 触发后处理策略 */}
+      {/* 트리거 후 처리 정책 */}
       <div className="grid gap-3 rounded-md border p-3">
         <Label className="text-muted-foreground text-xs">트리거 후 처리 정책(대기열 처리 방식/통합 실행)</Label>
         <div className="flex flex-wrap items-center gap-4">
@@ -994,7 +994,7 @@ function AgentTriggersTab({ agentKey, agent }: { agentKey: string; agent?: Agent
         </p>
       </div>
 
-      {/* 新增 / 编辑触发器 */}
+      {/* 트리거 생성 / 편집 */}
       <div className="grid gap-3 rounded-md border p-3">
         <Label className="text-muted-foreground text-xs">
           {editingId != null
@@ -1002,7 +1002,7 @@ function AgentTriggersTab({ agentKey, agent }: { agentKey: string; agent?: Agent
             : "트리거 추가(조건별로 사용자 메시지 작성 가능)"}
         </Label>
 
-        {/* 定时 */}
+        {/* 일정 */}
         <div className="grid gap-1.5">
           <label className="flex items-center gap-2 text-sm">
             <Checkbox checked={onInterval} onCheckedChange={(v) => setOnInterval(!!v)} /> 주기 트리거
@@ -1032,7 +1032,7 @@ function AgentTriggersTab({ agentKey, agent }: { agentKey: string; agent?: Agent
           )}
         </div>
 
-        {/* 目标达成 */}
+        {/* 목표 달성 */}
         <div className="grid gap-1.5">
           <label className="flex items-center gap-2 text-sm">
             <Checkbox checked={onGoalMet} onCheckedChange={(v) => setOnGoalMet(!!v)} /> 목표 달성 시 트리거
@@ -1043,7 +1043,7 @@ function AgentTriggersTab({ agentKey, agent }: { agentKey: string; agent?: Agent
           )}
         </div>
 
-        {/* 任务超时 */}
+        {/* 작업 시간 초과 */}
         <div className="grid gap-1.5">
           <label className="flex items-center gap-2 text-sm">
             <Checkbox checked={onTaskTimeout} onCheckedChange={(v) => setOnTaskTimeout(!!v)} /> 작업 시간 초과 시 트리거
@@ -1054,7 +1054,7 @@ function AgentTriggersTab({ agentKey, agent }: { agentKey: string; agent?: Agent
           )}
         </div>
 
-        {/* 工具调用 */}
+        {/* 도구 호출 */}
         <div className="grid gap-1.5">
           <label className="flex items-center gap-2 text-sm">
             <Checkbox checked={onToolCall} onCheckedChange={(v) => setOnToolCall(!!v)} /> 도구 호출 시 트리거
@@ -1085,7 +1085,7 @@ function AgentTriggersTab({ agentKey, agent }: { agentKey: string; agent?: Agent
           )}
         </div>
 
-        {/* 任务创建 */}
+        {/* 작업 생성 */}
         <div className="grid gap-1.5">
           <label className="flex items-center gap-2 text-sm">
             <Checkbox checked={onTaskCreate} onCheckedChange={(v) => setOnTaskCreate(!!v)} /> 작업 생성 시 트리거
@@ -1108,7 +1108,7 @@ function AgentTriggersTab({ agentKey, agent }: { agentKey: string; agent?: Agent
         </div>
       </div>
 
-      {/* 已有触发器 */}
+      {/* 기존 트리거 */}
       <div className="grid gap-2">
         <Label className="text-muted-foreground text-xs">기존 트리거</Label>
         {triggers.length === 0 && <span className="text-muted-foreground text-xs">(없음)</span>}

@@ -10,8 +10,8 @@ import type { Edge, TaskNode } from "@/lib/types";
 export function GraphTab({ taskId }: { taskId: string }) {
   const [nodes, setNodes] = React.useState<TaskNode[]>([]);
   const [edges, setEdges] = React.useState<Edge[]>([]);
-  // 上一次图数据的签名:轮询拿到相同数据时跳过 setState,避免整图无谓重建(拖动时
-  // 才不会被 20s 轮询打断而顿挫)。只取影响渲染的字段。
+  // 이전 그래프 데이터 서명. 같은 폴링 결과면 setState를 생략하여 재생성으로 드래그가
+  // 20초마다 끊기는 현상을 방지합니다. 렌더링에 영향을 주는 필드만 포함합니다.
   const sigRef = React.useRef("");
 
   React.useEffect(() => {

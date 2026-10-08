@@ -1,9 +1,9 @@
-// 渠道字段表与配置值的解析工具。
+// 채널 필드 정의와 설정 값 파싱 도구.
 //
-// 与页面拆开是因为这一份是**数据**而不是视图：它描述每种渠道有哪些字段、
-// 各自该用什么控件，以及表单文本到配置值（JSON）的双向转换。
-// 单独放一个文件后，新增渠道只需要动这里，页面本身不必改。
-// 渠道类型的展示名与简介。放在前端是因为它只影响文案，后端不需要知道。
+// 화면이 아닌 데이터이므로 페이지와 분리합니다. 채널별 필드와 컨트롤,
+// 폼 텍스트와 JSON 설정 값의 양방향 변환을 정의합니다.
+// 별도 파일로 두어 새 채널 추가 시 페이지를 수정하지 않아도 됩니다.
+// 채널 표시 이름과 설명은 UI 문구에만 영향을 주므로 프런트엔드에 둡니다.
 export const KIND_LABEL: Record<string, string> = {
   dingtalk: "DingTalk",
   feishu: "Feishu",
@@ -13,14 +13,14 @@ export const KIND_LABEL: Record<string, string> = {
   email: "이메일",
 };
 
-// 各渠道的配置字段定义。
+// 채널별 설정 필드 정의.
 //
-// 这里刻意保留一份前端字段表，而不是让后端下发 schema：后端只负责
-// Validate（必填/格式），UI 需要的是布局与控件类型，两者关注的不是同一件事。
-// 唯一的耦合点是 secret_keys —— 哪些字段该渲染成密码框由后端给出，
-// 因为只有渠道实现自己清楚哪些值算凭据（企业微信的整个 Webhook 就是凭据，
-// 而钉钉的只是其中一个 secret）。新增渠道时这里少一个条目只会让表单变空白，
-// 不会静默出错（下面的 hasFields 会提示）。
+// 백엔드 schema를 내려받는 대신 프런트엔드 필드 테이블을 유지합니다. 백엔드는 필수/형식 검증,
+// UI는 배치와 컨트롤 유형을 담당하므로 관심사가 다릅니다.
+// 유일한 연결점은 secret_keys입니다. 암호 입력란으로 표시할 필드를 백엔드가 알려줍니다.
+// 자격 증명 여부는 채널 구현만 정확히 알 수 있습니다. WeCom은 전체 Webhook이 자격 증명이고,
+// DingTalk은 secret 하나만 해당합니다. 새 채널 정의가 누락되면 폼이 비지만
+// 아래 hasFields가 안내하므로 조용히 오류가 생기지는 않습니다.
 export type FieldKind = "text" | "password" | "number" | "select" | "textarea" | "switch" | "kv" | "list";
 export interface FieldDef {
   key: string;
@@ -152,7 +152,7 @@ export const emptyForm = (kind: string): ChannelForm => ({
   onStatusChange: false,
 });
 
-// parseKV 解析「每行 KEY=VALUE」的文本域。
+// parseKV는 줄마다 KEY=VALUE인 텍스트를 파싱합니다.
 export function parseKV(text: string): Record<string, string> {
   const out: Record<string, string> = {};
   for (const line of text.split("\n")) {
@@ -163,7 +163,7 @@ export function parseKV(text: string): Record<string, string> {
   }
   return out;
 }
-// parseIDs 解析逗号/空白分隔的 id 列表。
+// parseIDs는 쉼표 또는 공백으로 구분한 ID 목록을 파싱합니다.
 export function parseIDs(text: string): number[] {
   return text
     .split(/[\s,，]+/)
@@ -172,7 +172,7 @@ export function parseIDs(text: string): number[] {
     .map((s) => Number(s))
     .filter((n) => Number.isFinite(n) && n > 0);
 }
-// parseKeywords 解析行/逗号分隔的关键词列表（漏洞类型名可能含空格，所以按行或逗号切）。
+// parseKeywords는 공백을 포함할 수 있는 취약점 이름을 줄 또는 쉼표로 구분합니다.
 export function parseKeywords(text: string): string[] {
   return text
     .split(/[\n,，]+/)

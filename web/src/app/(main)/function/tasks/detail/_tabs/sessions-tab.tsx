@@ -163,8 +163,8 @@ function mergeBySeq(current: Activity[], incoming: Activity[]): Activity[] {
 }
 
 // statusIcon maps a session status to its icon. Worker terminal states are
-// distinct & color-coded: 完成(绿勾圈) / 取消停止(琥珀斜杠圈) / 出错(红叉圈) /
-// 步数耗尽(紫). running=蓝色转圈, pending(待领取)=灰时钟.
+// 상태별 아이콘: 완료(초록 체크 원), 취소(황색 슬래시 원), 오류(빨간 X 원),
+// 단계 소진(보라색), 실행 중(파란 회전 표시), 수령 대기(회색 시계).
 function statusIcon(status: SessionStatus) {
   switch (status) {
     case "running": // 실행 중
@@ -244,7 +244,7 @@ const roleMeta = {
 // dedicated backend "sessions" endpoint — it is a fixed UI affordance whose
 // transcript is the main-agent activity stream (worker="mainagent") for the task.
 // A main-agent session is one resettable conversation segment. Segment 0 is the
-// original session; "新建会话" creates further segments (seq 1,2,…) so the agent
+// 원래 세션. 새 세션 생성 시 seq 1,2,… 구간을 추가하여 Agent가
 // starts on a clean transcript while the task's graph/assets/goal stay shared. Each
 // segment is a switchable UI session; only the current (highest) one is writable.
 const mainSessionId = (seg: number) => `s-main-${seg}`;
@@ -369,7 +369,7 @@ function SessionItem({
     s.role === "worker" &&
     !s.inherited &&
     !deleted &&
-    // pending = 待领(open)意图;连同运行中/已暂停都允许删除。
+    // pending은 수령 대기(open) 의도입니다. 실행 중/일시 중지 상태와 함께 삭제할 수 있습니다.
     (s.status === "running" || s.status === "paused" || s.status === "pending");
   return (
     <div
@@ -515,9 +515,9 @@ export function SessionsTab({ taskId }: { taskId: string }) {
   const [currentSeg, setCurrentSeg] = React.useState(0);
   const [creatingMain, setCreatingMain] = React.useState(false);
   const [confirmNewMain, setConfirmNewMain] = React.useState(false);
-  // 手机端（<lg）会话列表默认折叠：屏幕高度本就紧张，列表若固定占掉 10~15rem，
-  // 下方的会话记录会被挤到只剩标题与输入框。折叠后记录区拿到几乎全部高度，
-  // 点标题栏可展开选会话，选完自动收起。桌面端不受影响（lg 起始终展开）。
+  // 모바일(<lg)은 세션 목록을 기본으로 접습니다. 10~15rem을 고정 사용하면
+  // 기록 영역에는 제목과 입력란만 남으므로 접어서 대부분의 높이를 기록에 할당합니다.
+  // 제목을 누르면 목록이 펼쳐지고 선택 후 다시 접힙니다. 데스크톱(lg 이상)은 항상 펼칩니다.
   const [listOpen, setListOpen] = React.useState(false);
   // Per-session lazily-loaded caches, keyed by session_key (main | plan | intent:<id>).
   const [store, setStore] = React.useState<SessionStore>({});
@@ -536,12 +536,12 @@ export function SessionsTab({ taskId }: { taskId: string }) {
   const [controllingIntent, setControllingIntent] = React.useState<string | null>(null);
   const [cancelIntent, setCancelIntent] = React.useState<Session | null>(null);
   const [cancelReason, setCancelReason] = React.useState("");
-  // 删除模式:soft=假删除(默认,置 deleted + 记原因,保留数据)| hard=真删除(级联移除独占子孙)。
+  // 삭제 모드: soft는 deleted 상태와 사유만 기록하며 데이터 유지, hard는 독점 자손까지 물리 삭제.
   const [deleteMode, setDeleteMode] = React.useState<"soft" | "hard">("soft");
   const [workerMessage, setWorkerMessage] = React.useState("");
   const [workerMessageRequestId, setWorkerMessageRequestId] = React.useState("");
   const [workerMessageSending, setWorkerMessageSending] = React.useState(false);
-  // 方式1 文件上传:选好的附件(已落到任务工作目录 uploads/),随下条消息一起发。
+  // 작업 uploads/에 저장된 첨부 파일은 다음 메시지와 함께 전송합니다.
   const [attachments, setAttachments] = React.useState<ChatAttachment[]>([]);
   const [uploading, setUploading] = React.useState(false);
   const fileInputRef = React.useRef<HTMLInputElement>(null);
@@ -609,14 +609,14 @@ export function SessionsTab({ taskId }: { taskId: string }) {
           patchIntentState(session.intent_id, "open");
           toast.success(`Worker #${session.intent_id} 복원됨, 재할당 대기`);
         } else if (mode === "hard") {
-          // 真删除:意图及独占下游已物理移除,从列表剔除该行。
+          // 물리 삭제: 의도와 독점 하위 항목이 제거되었으므로 목록에서도 행을 제거합니다.
           patchIntentState(session.intent_id);
           const d = res.deleted;
           const extra = d ? `(포함 ${d.intents} 의도 / ${d.facts} 사실 / ${d.findings} 취약점)` : "";
           toast.success(`Worker #${session.intent_id} 및 해당 항목의 전용 하위 항목을 완전히 삭제했습니다${extra}`);
           setCancelReason("");
         } else {
-          // 假删除:意图置 deleted、记录删除原因,保留节点与产出。
+          // 논리 삭제: 의도를 deleted로 설정하고 사유를 기록하되 노드와 결과는 유지합니다.
           patchIntentState(session.intent_id, "deleted");
           toast.success(`Worker #${session.intent_id} 삭제됨(사유를 기록했으며 계획 담당자가 이를 반영해 다시 계획합니다)`);
           setCancelReason("");
@@ -1156,7 +1156,7 @@ export function SessionsTab({ taskId }: { taskId: string }) {
     for (const node of allIntents) {
       let title = `Intent ${node.id}`;
       let parsedPayload: unknown = node.payload;
-      // 假删除:意图 state='deleted',删除原因在独立字段 delete_reason 上。
+      // 논리 삭제는 state='deleted', 사유는 별도 delete_reason 필드에 저장합니다.
       const deleted = node.state === "deleted";
       const deleteReason = node.delete_reason ?? "";
       if (node.payload) {
@@ -1280,8 +1280,8 @@ export function SessionsTab({ taskId }: { taskId: string }) {
   const activeSettled =
     !!activeLast && (activeLast.kind === "result" || (activeLast.kind === "text" && activeLast.is_error));
   const mainBusy = isMain && (sending || (!activeSettled && (mainChatRunning ?? recentLive(activeKey))));
-  // 折叠态（手机端）标题栏要替代整张列表：显示当前会话名 + 其它会话的未读合计，
-  // 否则收起后既不知道自己在看哪个会话，也看不到别处有新消息。
+  // 모바일에서 접힌 제목은 현재 세션 이름과 다른 세션의 미확인 합계를 표시하여
+  // 어떤 세션을 보는지와 다른 곳의 새 메시지를 확인할 수 있게 합니다.
   const activeDisplayTitle = (active.role === "worker" ? sessionMeta.get(active.id)?.title : "") || active.title;
   const hiddenUnread = React.useMemo(
     () => Object.entries(store).reduce((sum, [key, s]) => (key === activeKey ? sum : sum + s.unread), 0),
@@ -1547,7 +1547,7 @@ export function SessionsTab({ taskId }: { taskId: string }) {
   }
 
   const mainLoaded = !!store[currentMainKey]?.loaded;
-  // 发送键位由系统设置决定（localStorage），默认 Enter 发送。
+  // 전송 키는 시스템 설정(localStorage)을 따르며 기본값은 Enter입니다.
   const sendMode = useChatSendMode();
   // What the transcript pane should show for the active session.
   const showLoader = !activeState || (activeState.loading && !activeState.loaded);
@@ -1563,7 +1563,7 @@ export function SessionsTab({ taskId }: { taskId: string }) {
 
   return (
     <TooltipProvider delayDuration={300}>
-      {/* 高度预留：页面头部（标题行 + 目标 + Tabs ≈ 7.5rem）+ 内容内边距。手机端 p-4、
+      {/* 높이 예약: 페이지 헤더(제목 + 목표 + Tabs 약 7.5rem)와 내용 여백. 모바일은 p-4,
         데스크톱 lg:p-6，데스크톱에서도 스크롤 여유가 필요하므로 두 단계로 공간을 확보 10rem / 13rem —— 모바일
         기존 값 사용 13rem 불필요하게 차지하는 공간: 3rem 기록 높이。 */}
       <div
@@ -1796,7 +1796,7 @@ export function SessionsTab({ taskId }: { taskId: string }) {
               <div className="ml-auto flex min-w-0 max-w-full items-center justify-end gap-x-3 gap-y-1 text-xs text-muted-foreground max-sm:w-full max-sm:flex-wrap">
                 {tokenTotal.any && (
                   <Tooltip>
-                    {/* 手机端用短标签（入/缓/出）：长标签会把这一行撑成两行，进一步压缩记录区。 */}
+                    {/* 모바일은 입력/캐시/출력의 짧은 라벨로 두 줄 줄바꿈을 막아 기록 높이를 확보합니다. */}
                     <TooltipTrigger asChild>
                       <span className="inline-flex min-w-0 items-center">
                         <TokenMetrics

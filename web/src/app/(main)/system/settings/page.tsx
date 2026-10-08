@@ -38,12 +38,12 @@ export default function SystemSettingsPage() {
   const [pyInterp, setPyInterp] = React.useState("");
   const [workers, setWorkers] = React.useState("3");
   const [savingWorkers, setSavingWorkers] = React.useState(false);
-  // 操作约束注入范围(默认都开)。
+  // 작업 제약 주입 범위(기본값은 모두 활성화).
   const [injectPlanner, setInjectPlanner] = React.useState(true);
   const [injectWorker, setInjectWorker] = React.useState(true);
-  // 实验功能:noa 上下文压缩(默认关)。
+  // 실험 기능: noa 컨텍스트 압축(기본 비활성화).
   const [noaCompaction, setNoaCompaction] = React.useState(false);
-  // 纯前端偏好：不走 /api/settings，直接读写 localStorage。
+  // 프런트엔드 전용 설정으로 /api/settings 없이 localStorage를 직접 읽고 씁니다.
   const sendMode = useChatSendMode();
 
   const apply = React.useCallback((s: Settings) => {
@@ -155,7 +155,7 @@ export default function SystemSettingsPage() {
       .setSettings({ noa_compaction: v })
       .then((s) => {
         apply(s);
-        toast.success(v ? "켜짐 noa 컨텍스트 압축(이후 시작하는 실행에 적용)" : "꺼짐 noa 컨텍스트 압축(기본 압축 복원)");
+        toast.success(v ? "noa 컨텍스트 압축을 켰습니다(이후 시작하는 실행에 적용)" : "noa 컨텍스트 압축을 껐습니다(기본 압축 복원)");
       })
       .catch((e) => {
         setNoaCompaction(!v); // revert on failure
@@ -261,7 +261,7 @@ export default function SystemSettingsPage() {
         <p className="text-muted-foreground text-sm">전역 런타임 스위치</p>
       </div>
 
-      {/* 多列而非 grid：网络搜索卡片比其余高数倍，且高度随所选后端变化（brave/tavily
+      {/* grid 대신 여러 열 사용: 검색 카드는 다른 카드보다 높고 brave/tavily 등 공급자에 따라 높이가 달라지므로
           의 key 입력은 조건부 렌더링）。grid 가장 높은 카드 기준으로 행 높이가 정해져 주변에 큰 빈 공간이 생김，
           다단 레이아웃은 내용 높이에 맞춰 균형 있게 채움. 카드 간격은 다음으로 설정 mb 대신 사용하지 않음: gap——다단 레이아웃에서
           column-gap 열 간격만 적용하므로 행 간격은 자식 요소에서 설정。 */}

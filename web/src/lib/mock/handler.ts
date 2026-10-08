@@ -1,6 +1,6 @@
-// Mock 路由：把 (method, path) 映射到 lib/mock/data 的静态数据。
-// 未命中的一律返回安全默认（[] / {} / {ok:true}），保证任何页面都不崩。
-// 只在 NEXT_PUBLIC_MOCK=1 时经由 api.ts 的 http() 短路进入这里。
+// Mock 라우트: method/path를 lib/mock/data의 정적 데이터에 연결합니다.
+// 일치하지 않으면 [] / {} / {ok:true} 등의 기본값을 반환하여 화면 오류를 방지합니다.
+// NEXT_PUBLIC_MOCK=1일 때만 api.ts의 http()가 여기로 우회합니다.
 
 import {
   classifyCompanyScopeLine,
@@ -51,10 +51,10 @@ const mockConversations = structuredClone(D.conversations);
 const mockRetests: FindingRetest[] = [];
 const mockRetestMessages: Record<number, Activity[]> = {};
 
-// ── 关联流量证据(finding traffic) ─────────────────────────────────────────────
-// 后端把请求/响应快照独立存到 evidence 表,前端详情页用 FindingTrafficPanel 展示。
-// demo 里为部分漏洞预置绑定,快照直接引用 mock 抓包(data.traffic.exchanges),
-// 其余漏洞返回空绑定。缺了这套路由,详情页会因读到空对象、访问 bindings.length 崩整页。
+// ── 연결된 트래픽 증거(finding traffic) ─────────────────────────────────────────────
+// 백엔드는 요청/응답 스냅샷을 evidence 테이블에 별도 저장하고 프런트엔드는 FindingTrafficPanel로 표시합니다.
+// 데모는 일부 취약점에 mock 패킷(data.traffic.exchanges)을 직접 참조하는 연결을 설정하고,
+// 나머지는 빈 연결을 반환합니다. 라우트가 없으면 빈 객체의 bindings.length 접근으로 화면이 중단됩니다.
 const mockExchangeById = new Map((D.traffic.exchanges ?? []).map((exchange) => [exchange.id, exchange]));
 
 interface MockBindingSeed {
@@ -63,8 +63,8 @@ interface MockBindingSeed {
   note?: string;
 }
 
-// 每条漏洞预置的流量证据(finding id → 绑定的抓包)。选取与漏洞语义对应的请求,
-// 让 demo 详情页的「关联流量」区块看起来真实。
+// 취약점별 기본 트래픽 증거(finding ID → 연결 패킷). 의미가 맞는 요청을 선택하여
+// 데모 상세 페이지의 연결된 트래픽 영역을 구성합니다.
 const mockFindingTrafficSeeds: Record<string, MockBindingSeed[]> = {
   "f-1": [{ traffic_id: "x-2", role: "proof", note: "q 매개변수 인젝션 payload, 응답에 표시됨 MSSQL 오류." }],
   "f-2": [
@@ -82,7 +82,7 @@ const mockFindingTrafficSeeds: Record<string, MockBindingSeed[]> = {
   "f-17": [{ traffic_id: "x-19", role: "proof", note: "psexec 다음 상태로 svc_deploy 도메인 컨트롤러 로그인 DC01." }],
 };
 
-// demo 用固定报文正文,避免详情页 Request/Response 空白。
+// 상세 Request/Response가 비지 않도록 데모는 고정 본문을 사용합니다.
 const mockEvidenceBodies: Record<string, { req: string; resp: string }> = {
   "x-2": {
     req: "q=1' AND 1=CONVERT(int,@@version)--",
@@ -103,7 +103,7 @@ const mockEvidenceBodies: Record<string, { req: string; resp: string }> = {
   "x-19": { req: "[psexec] acme/svc_deploy@10.10.10.10", resp: "[*] Got SYSTEM on DC01" },
 };
 
-// 运行期状态:finding id → 绑定列表(可增删改序,demo 内存态)。首次访问按种子初始化。
+// 실행 상태는 finding ID → 연결 목록이며 추가/삭제/정렬 가능합니다. 첫 접근 시 초기값으로 채웁니다.
 const mockFindingTraffic: Record<string, FindingTrafficBinding[]> = {};
 const mockFindingTrafficVersion: Record<string, number> = {};
 let mockBindingSeq = 900;
@@ -115,7 +115,7 @@ function mockBuildSnapshot(trafficId: string): TrafficEvidenceSnapshot {
   try {
     if (exchange) pathAndQuery = new URL(exchange.url).pathname + new URL(exchange.url).search;
   } catch {
-    // 保底用根路径。
+    // 기본값으로 루트 경로를 사용합니다.
   }
   const body = mockEvidenceBodies[trafficId];
   return {
@@ -157,7 +157,7 @@ function mockTrafficSummary(findingID: string): FindingTraffic {
   const bindings = mockTrafficBindings(findingID).map((binding, index) => ({
     ...binding,
     position: index,
-    // 列表/摘要接口剥掉报文头,与后端 trafficSummary 一致。
+    // 목록/요약에서는 백엔드 trafficSummary와 동일하게 메시지 헤더를 제거합니다.
     snapshot: { ...binding.snapshot, req_head: "", resp_head: "" },
   }));
   const version = mockFindingTrafficVersion[findingID] ?? 1;
@@ -461,8 +461,8 @@ function mockAssetMatchesDSL(asset: Asset, dsl: string): boolean {
   return query.split(/\s+/).every((term) => haystack.includes(term));
 }
 
-// mockFilterFindings 应用发现页的公共筛选(严重度/状态/类型/任务/关键词),资产
-// 子树筛选另走 mockApplyAssetScope —— 与后端 FindingFilter.where() 的分工一致。
+// mockFilterFindings는 심각도/상태/유형/작업/키워드 공통 필터를 적용하고 자산 하위 트리는
+// mockApplyAssetScope가 처리합니다. 백엔드 FindingFilter.where()와 역할 분담이 같습니다.
 function mockFilterFindings(q: URLSearchParams): (typeof mockFindings)[number][] {
   let list = mockFindings.filter((finding) => mockFindingMatchesQuery(finding, q.get("q")));
   const severity = q.get("severity");
@@ -487,15 +487,15 @@ function mockFindingMatchesQuery(finding: (typeof mockFindings)[number], query: 
   );
 }
 
-// ── 「按资产」视图 ────────────────────────────────────────────────────────────
-// 后端把树建在 db/finding_assets.go 里(只收有发现的资产 + 逐层补齐祖先,计数沿
-// 祖先链去重累加)。这里用同一套父子优先级在内存里重放一遍,让 demo 模式的层级、
-// 计数、子树筛选与真后端保持一致。
+// ── 자산별 보기 ────────────────────────────────────────────────────────────
+// 백엔드 db/finding_assets.go는 발견 사항이 있는 자산과 조상을 모으고 조상 경로에서 중복을 제거해 집계합니다.
+// 여기서는 같은 부모 우선순위를 메모리에서 재현하여 데모의 계층·개수·하위 트리 필터가
+// 실제 백엔드와 일치하도록 합니다.
 
 const UNASSIGNED_ASSET = "__none__";
 
 function mockAssetLabel(asset: (typeof mockAssets)[number]): string {
-  // 没有 URL 的服务补端口,否则标签会和宿主 IP/域名那行完全一样(与后端一致)。
+  // URL 없는 서비스는 호스트 행과 구분되도록 백엔드와 같이 포트를 추가합니다.
   if (asset.type === "service" && !asset.url) {
     const host = asset.domain || asset.ip;
     if (host && asset.port) return `${host}:${asset.port}`;
@@ -503,7 +503,7 @@ function mockAssetLabel(asset: (typeof mockAssets)[number]): string {
   return asset.url || asset.domain || asset.ip || asset.app_name || `#${asset.id}`;
 }
 
-// mockAssetHost 与后端 hostPortOf 一致:优先 domain,其次 URL 里的 host,最后 ip。
+// mockAssetHost는 hostPortOf와 같이 domain → URL host → ip 순으로 사용합니다.
 function mockAssetHost(asset: (typeof mockAssets)[number]): { host: string; port: number } {
   let host = asset.domain ?? "";
   let port = asset.port ?? 0;
@@ -513,7 +513,7 @@ function mockAssetHost(asset: (typeof mockAssets)[number]): { host: string; port
       host = url.hostname.replace(/^\[|\]$/g, "");
       if (!port) port = Number(url.port) || (url.protocol === "https:" ? 443 : 80);
     } catch {
-      // 非法 URL 就退回 ip。
+      // 잘못된 URL은 ip로 대체합니다.
     }
   }
   if (!host) host = asset.ip ?? "";
@@ -536,14 +536,14 @@ interface MockAssetTreeNode {
   last_found_at: string;
 }
 
-// mockBuildAssetTree 从一批(已按其它条件筛过的)发现构建资产树。
+// mockBuildAssetTree는 다른 필터를 적용한 발견 사항에서 자산 트리를 만듭니다.
 function mockBuildAssetTree(list: (typeof mockFindings)[number][]): MockAssetTreeNode[] {
   const hit = new Set<number>();
   for (const finding of list) {
     for (const ref of finding.assets ?? []) hit.add(Number(ref.id));
   }
 
-  // 收集命中的资产 + 逐层补齐祖先(宿主 service / 子域名 / IP / 根域名)。
+  // 일치 자산과 호스트 service/하위 도메인/IP/루트 도메인 조상을 수집합니다.
   const picked = new Map<number, (typeof mockAssets)[number]>();
   for (const asset of mockAssets) if (hit.has(asset.id)) picked.set(asset.id, asset);
   for (let round = 0; round < 4; round++) {
@@ -591,7 +591,7 @@ function mockBuildAssetTree(list: (typeof mockFindings)[number][]): MockAssetTre
     });
   }
 
-  // 父子关系:与 db/finding_assets.go 的 firstOf 优先级顺序一致。
+  // 부모 관계는 db/finding_assets.go의 firstOf 우선순위를 따릅니다.
   const find = (predicate: (a: (typeof mockAssets)[number]) => boolean) => {
     const asset = [...picked.values()].find(predicate);
     return asset ? key(asset.id) : "";
@@ -625,7 +625,7 @@ function mockBuildAssetTree(list: (typeof mockFindings)[number][]): MockAssetTre
     }
   }
 
-  // 企业层:只给确实有归属的顶层资产(根域名 / IP / 应用)补,没有归属就自己是顶层。
+  // 실제 소속이 있는 최상위 루트 도메인/IP/앱에만 기업을 추가하고 없으면 자체 최상위로 둡니다.
   for (const node of [...nodes.values()]) {
     if (node.parent || !node.company_id) continue;
     if (!["root_domain", "ip", "app"].includes(node.kind)) continue;
@@ -651,7 +651,7 @@ function mockBuildAssetTree(list: (typeof mockFindings)[number][]): MockAssetTre
     parentOf.set(node.key, companyKey);
   }
 
-  // 计数:一条发现沿它每个资产的祖先链向上,收集去重后的 key 集合再逐个 +1。
+  // 발견 사항마다 각 자산의 조상 경로를 따라 중복 없는 key 집합을 만든 뒤 각각 1을 더합니다.
   const unassigned: MockAssetTreeNode = {
     key: UNASSIGNED_ASSET,
     kind: "none",
@@ -699,8 +699,8 @@ function mockBuildAssetTree(list: (typeof mockFindings)[number][]): MockAssetTre
   return out;
 }
 
-// mockAssetScopeIds 把资产树节点 key 展开成整棵子树的资产 id 集合,与后端
-// applyAssetScope 同义。miss=true 表示该节点在当前筛选下不存在 → 结果恒空。
+// mockAssetScopeIds는 트리 노드 key를 전체 하위 트리 자산 ID 집합으로 확장하며 백엔드
+// applyAssetScope와 같습니다. miss=true는 현재 필터에 노드가 없어 결과가 항상 비어 있음을 뜻합니다.
 function mockAssetScopeIds(
   scope: string,
   list: (typeof mockFindings)[number][],
@@ -729,8 +729,8 @@ function mockAssetScopeIds(
   return { ids, none: false, miss: ids.size === 0 };
 }
 
-// mockApplyAssetScope 按 asset_scope 收窄一批发现。「未关联」同时收 assets 为空
-// 与指向已删资产的发现,和树上那个桶的口径一致。
+// mockApplyAssetScope는 asset_scope로 범위를 좁힙니다. 미연결에는 빈 assets와 삭제된 자산을
+// 가리키는 발견 사항을 함께 포함하여 트리 집계와 기준을 맞춥니다.
 function mockApplyAssetScope(
   list: (typeof mockFindings)[number][],
   scope: string | null,
@@ -816,7 +816,7 @@ function mockProfileResolution(profileID: number | undefined, source: TaskLLMRes
 }
 
 // Mirrors the backend precedence in server/task_resolution.go:
-// Agent 绑定 → 任务 LLM 配置链 → 全局配置 → 环境配置。
+// Agent 연결 → 작업 LLM 설정 체인 → 전역 설정 → 환경 설정.
 function mockRoleResolution(task: Task, agentKey: "mainagent" | "planner" | "worker"): TaskLLMResolution {
   const agent = D.agents.find((item) => item.key === agentKey);
   if (agent?.llm_profile_id) {
@@ -1054,7 +1054,7 @@ function route(m: string, path: string, seg: string[], q: URLSearchParams, b: Re
     };
   }
 
-  // ── auth：让 demo 直接进主界面 ──
+  // ── auth: 데모에서 주 화면 바로 진입 ──
   if (path === "/auth/status") return { initialized: true };
   if (path === "/auth/login" || path === "/auth/init") return { token: "mock-demo" };
   if (path === "/auth/change-password") return { ok: true };
@@ -1462,7 +1462,7 @@ function route(m: string, path: string, seg: string[], q: URLSearchParams, b: Re
       }
       const numId = Number(id.replace(/\D/g, "")) || 0;
       if (b.mode === "hard") {
-        // 真删除:从列表移除,返回级联删除计数。
+        // 물리 삭제: 목록에서 제거하고 연쇄 삭제 개수를 반환합니다.
         mockIntents.splice(index, 1);
         return {
           id: numId,
@@ -1475,7 +1475,7 @@ function route(m: string, path: string, seg: string[], q: URLSearchParams, b: Re
           },
         };
       }
-      // 假删除(默认):置 deleted + 记删除原因,保留节点。
+      // 논리 삭제(기본값): deleted와 사유를 기록하고 노드는 유지합니다.
       intent.state = "deleted";
       intent.delete_reason = String(b.reason ?? "");
       return { id: numId, state: "deleted" };
@@ -1514,12 +1514,12 @@ function route(m: string, path: string, seg: string[], q: URLSearchParams, b: Re
     return { active: mockActiveTask };
   }
 
-  // ── 覆盖度 / 覆盖图 / 资产关联（任务维度）──
+  // ── 작업별 커버리지 / 커버리지 그래프 / 자산 연결 ──
   if (seg[0] === "tasks" && seg[2] === "coverage" && seg.length === 3) return D.coverage;
   if (seg[0] === "tasks" && seg[2] === "coverage-graph") return D.coverageGraph;
   if (seg[0] === "tasks" && seg[2] === "asset-refs") return D.assetRefsFor(Number(q.get("asset_id") ?? 0));
 
-  // ── 任务测试范围（增删查）──
+  // ── 작업 테스트 범위 추가/삭제/조회 ──
   if (seg[0] === "tasks" && seg[2] === "scope" && seg.length === 3 && m === "GET") {
     return { scope: mockTaskScopes.get(seg[1]) ?? [] };
   }
@@ -1548,7 +1548,7 @@ function route(m: string, path: string, seg: string[], q: URLSearchParams, b: Re
     return { ok: true };
   }
 
-  // ── 全局 llm_usage 聚合（仪表盘新版视图，demo）──
+  // ── 전역 llm_usage 집계(대시보드 새 보기, 데모) ──
   if (path === "/tokens/usage")
     return {
       by_profile: [
@@ -1587,7 +1587,7 @@ function route(m: string, path: string, seg: string[], q: URLSearchParams, b: Re
       ],
     };
 
-  // ── 按模型 token 用量（demo：一条示例）──
+  // ── 모델별 토큰 사용량(데모 예제 하나) ──
   if (path === "/llm/records/by-model")
     return {
       models: [
@@ -1610,7 +1610,7 @@ function route(m: string, path: string, seg: string[], q: URLSearchParams, b: Re
       ],
     };
 
-  // ── 工作空间文件管理器（demo：静态示例树；写/建/删走下方写兜底 {ok:true}）──
+  // ── 작업 공간 파일 관리자(정적 트리, 쓰기/생성/삭제는 아래 {ok:true} 대체 처리) ──
   if (path === "/workspace/list") return D.workspaceList(q.get("path") ?? "");
   if (path === "/workspace/read") return D.workspaceRead(q.get("path") ?? "");
 
@@ -1847,7 +1847,7 @@ function route(m: string, path: string, seg: string[], q: URLSearchParams, b: Re
   if (path === "/exploration/frontier") return D.frontier;
   if (path === "/exploration/findings/stats") {
     const vulnclasses = Array.from(new Set(mockFindings.map((f) => f.vulnclass))).sort();
-    // 「按任务」下拉:有漏洞的任务 + 描述 + 条数(mock 任务 id 是字符串,直接当 id 用)。
+    // 작업별 선택: 취약점이 있는 작업, 설명, 개수. mock의 문자열 작업 ID를 그대로 사용합니다.
     const taskMap = new Map<string, { name: string; description: string; count: number }>();
     for (const f of mockFindings) {
       if (!f.task_id) continue;
@@ -2002,7 +2002,7 @@ function route(m: string, path: string, seg: string[], q: URLSearchParams, b: Re
       queued: false,
     };
   }
-  // 关联流量证据:列表 / 绑定 / 编辑 / 解绑 / 排序 / 单条报文详情(demo 内存态)。
+  // 트래픽 증거 목록/연결/편집/해제/정렬/메시지 상세(데모 메모리 상태).
   // seg = ["exploration","findings",<id>,"traffic", ...]
   if (seg[0] === "exploration" && seg[1] === "findings" && seg[3] === "traffic") {
     const findingID = seg[2];
@@ -2012,7 +2012,7 @@ function route(m: string, path: string, seg: string[], q: URLSearchParams, b: Re
       mockFindingTrafficVersion[findingID] = (mockFindingTrafficVersion[findingID] ?? 1) + 1;
     };
 
-    // 单条报文详情:GET /traffic/{binding_id}
+    // 메시지 상세: GET /traffic/{binding_id}
     if (seg.length === 5 && seg[4] !== "order" && m === "GET") {
       const binding = bindings.find((item) => item.id === seg[4]);
       if (!binding) throw new Error("증거가 존재하지 않습니다");
@@ -2023,7 +2023,7 @@ function route(m: string, path: string, seg: string[], q: URLSearchParams, b: Re
         response: mockEvidencePreview(body.resp),
       };
     }
-    // 报文正文分页:GET /traffic/{binding_id}/body —— demo 正文不截断,直接返回空续页。
+    // 본문 페이지: GET /traffic/{binding_id}/body. 데모는 자르지 않으므로 빈 후속 페이지 반환.
     if (seg.length === 6 && seg[5] === "body" && m === "GET") {
       const binding = bindings.find((item) => item.id === seg[4]);
       if (!binding) throw new Error("증거가 존재하지 않습니다");
@@ -2031,7 +2031,7 @@ function route(m: string, path: string, seg: string[], q: URLSearchParams, b: Re
       const side = q.get("side") === "request" ? body.req : body.resp;
       return mockEvidencePreview(side);
     }
-    // 绑定流量:POST /traffic
+    // 트래픽 연결: POST /traffic
     if (seg.length === 4 && m === "POST") {
       const refs = Array.isArray(b.traffic_refs) ? (b.traffic_refs as MockBindingSeed[]) : [];
       for (const ref of refs) {
@@ -2050,14 +2050,14 @@ function route(m: string, path: string, seg: string[], q: URLSearchParams, b: Re
       bumpVersion();
       return mockTrafficSummary(findingID);
     }
-    // 排序:PUT /traffic/order
+    // 정렬: PUT /traffic/order
     if (seg.length === 5 && seg[4] === "order" && m === "PUT") {
       const order = Array.isArray(b.binding_ids) ? (b.binding_ids as string[]) : [];
       bindings.sort((left, right) => order.indexOf(left.id) - order.indexOf(right.id));
       bumpVersion();
       return mockTrafficSummary(findingID);
     }
-    // 编辑说明 / 解绑:PATCH|DELETE /traffic/{binding_id}
+    // 설명 편집 / 연결 해제: PATCH|DELETE /traffic/{binding_id}
     if (seg.length === 5 && (m === "PATCH" || m === "DELETE")) {
       const index = bindings.findIndex((item) => item.id === seg[4]);
       if (index < 0) throw new Error("증거가 존재하지 않습니다");
@@ -2070,10 +2070,10 @@ function route(m: string, path: string, seg: string[], q: URLSearchParams, b: Re
       bumpVersion();
       return mockTrafficSummary(findingID);
     }
-    // 列表:GET /traffic
+    // 목록: GET /traffic
     return mockTrafficSummary(findingID);
   }
-  // 单条 finding:GET 详情 / PATCH 改状态/严重度/名称/类别(demo 直接改内存对象)。
+  // 단일 finding: GET 상세 / PATCH 상태·심각도·이름·분류(데모는 메모리 객체 직접 변경).
   if (seg[0] === "exploration" && seg[1] === "findings" && seg.length === 3 && seg[2] !== "stats") {
     const f = mockFindings.find((x) => x.id === seg[2]);
     if (!f) return {};
@@ -2099,8 +2099,8 @@ function route(m: string, path: string, seg: string[], q: URLSearchParams, b: Re
     };
   }
   if (path === "/exploration/findings") {
-    // finding_id=id：真后端用独立表行 id 作为状态/详情句柄,mock 里用自身 id 顶上。
-    // report 仅详情接口返回,列表剥掉(与后端一致)。
+    // finding_id=id. 실제 백엔드는 독립 테이블 행 ID, mock은 자체 ID를 상태/상세 조회에 사용합니다.
+    // 백엔드와 같이 report는 상세에서만 반환하고 목록에서는 제거합니다.
     const withFid = (f: (typeof mockFindings)[number]) => ({
       ...f,
       report: undefined,
@@ -2117,7 +2117,7 @@ function route(m: string, path: string, seg: string[], q: URLSearchParams, b: Re
           ...(f.task_id !== task ? { inherited: true, source_task_id: f.task_id } : {}),
         }));
     }
-    // 全局:带 page/limit → 分页对象;否则裸数组(dashboard)。
+    // 전역: page/limit가 있으면 페이지 객체, 없으면 대시보드용 배열을 반환합니다.
     if (!q.has("page") && !q.has("limit")) return mockFindings.map(withFid);
     const sev = { critical: 4, high: 3, medium: 2, low: 1 } as const;
     const list = mockApplyAssetScope(mockFilterFindings(q), q.get("asset_scope"));
@@ -2156,8 +2156,8 @@ function route(m: string, path: string, seg: string[], q: URLSearchParams, b: Re
     };
   }
   if (path === "/exploration/graph") return D.explorationGraph;
-  // 播报板:和后端 /exploration/nodes 同语义 —— 按创建顺序(mock 里用 ts + id)分页,
-  // 并带上这一页涉及的边与边另一端的节点。
+  // 방송 보드는 /exploration/nodes와 같이 생성 순서(mock은 ts + id)로 페이지를 구분하고,
+  // 해당 페이지의 간선과 반대편 노드도 반환합니다.
   if (path === "/exploration/nodes") {
     const all = D.explorationGraph.nodes;
     const kinds = new Set((q.get("kind") ?? "").split(",").filter(Boolean));
@@ -2172,7 +2172,7 @@ function route(m: string, path: string, seg: string[], q: URLSearchParams, b: Re
       .filter(
         (n) =>
           !needle ||
-          // 内容 / 来源 / 节点 id 任一命中即可(id 兼容「#41」写法)。
+          // 내용/출처/노드 ID 중 하나만 일치해도 됩니다(ID는 #41 형식도 지원).
           `${n.payload ?? ""} ${n.origin} ${n.id}`.toLowerCase().includes(needle.replace(/^#/, "")),
       )
       .sort((a, b) => {
@@ -2190,7 +2190,7 @@ function route(m: string, path: string, seg: string[], q: URLSearchParams, b: Re
         if (node) refs[id] = node;
       }
     }
-    // 顺带带上本页节点(含邻居)锚定的资产,供展开时展示。
+    // 펼칠 때 표시할 현재 페이지 및 이웃 노드의 연결 자산도 반환합니다.
     const assets: Record<string, ReturnType<typeof D.nodeAssetsFor>> = {};
     for (const id of new Set([...onPage, ...Object.keys(refs)])) {
       const anchored = D.nodeAssetsFor(id);
@@ -2226,7 +2226,7 @@ function route(m: string, path: string, seg: string[], q: URLSearchParams, b: Re
     return { reply: "(demo)이 제안을 높은 우선순위 의도로 전달했습니다, work agent 가능한 한 빨리 실행합니다.", mode: "hint" };
   if (path === "/gc") return { removed: 0 };
 
-  // ── 工具执行历史 ──
+  // ── 도구 실행 이력 ──
   if (path === "/commands" && m === "GET") return { commands: D.commandRecords, total: D.commandRecords.length };
   if (path === "/commands/stats" && m === "GET") {
     const tally = new Map<string, { tool: string; total: number; errors: number }>();
@@ -2378,7 +2378,7 @@ function route(m: string, path: string, seg: string[], q: URLSearchParams, b: Re
   if (seg[0] === "mcp" && seg[2] === "refresh") return { tools: D.mcpToolsById[Number(seg[1])] ?? [] };
   if (seg[0] === "mcp" && seg.length === 2 && m === "DELETE") return { deleted: Number(seg[1]) };
 
-  // ── scopesentry（demo：未配置）──
+  // ── scopesentry(데모는 미설정) ──
   if (path === "/sync/scopesentry/status")
     return { exists: false, configured: false, enabled: false, reachable: false, tools: [] };
   if (path === "/sync/scopesentry/projects") return { projects: [], tag: {} };
@@ -2474,17 +2474,17 @@ function route(m: string, path: string, seg: string[], q: URLSearchParams, b: Re
       daily: [],
     };
 
-  // ── 旁路提问(/btw)：demo 无旁路会话 ──
-  // 必须显式命中：路径以 s 结尾会被下面的读兜底判成集合返回 []，items 就成了 undefined。
+  // ── 별도 질의응답(/btw): 데모에는 별도 세션 없음 ──
+  // 명시적으로 매칭해야 합니다. s로 끝나는 경로는 아래에서 []로 처리되어 items가 undefined가 됩니다.
   if (seg.at(-1) === "side-questions") {
     if (m === "GET") return { items: [], current: null, next_cursor: 0, snapshot: null };
     if (m === "POST") throw new Error("데모 모드에서는 별도 질문을 지원하지 않습니다");
   }
 
-  // ── 写操作兜底：成功但不落库 ──
+  // ── 쓰기 기본 처리: 성공 반환, DB 저장 없음 ──
   if (["POST", "PUT", "PATCH", "DELETE"].includes(m)) return { ok: true };
 
-  // ── 读兜底：集合类给 []，其余 {} ──
+  // ── 읽기 기본 처리: 목록은 [], 나머지는 {} ──
   return /(\/(tasks|profiles|conversations|rules|history|projects|tokens|agents|servers|skills|tools|findings|intents)s?$)|s$/.test(
     path,
   )

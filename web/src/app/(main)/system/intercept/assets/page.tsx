@@ -19,7 +19,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { api } from "@/lib/api";
 import type { AssetInterceptKind, AssetInterceptRule } from "@/lib/types";
 
-// ---- kind 元信息 ----
+// ---- kind 메타데이터 ----
 
 const KIND_OPTIONS: { value: AssetInterceptKind; label: string; group: string; placeholder: string }[] = [
   { value: "exact_domain", label: "도메인(완전 일치)", group: "완전 일치", placeholder: "example.gov.cn" },
@@ -77,7 +77,7 @@ type RuleForm = {
 
 const defaultForm = (): RuleForm => ({ enabled: true, kind: "fuzzy_domain", pattern: "", note: "" });
 
-// 前端轻校验（与后端一致：仅 exact_ip / cidr 做格式校验，其余交后端）。
+// 백엔드와 동일한 간단 검증: exact_ip/cidr만 형식을 확인하고 나머지는 백엔드에 맡깁니다.
 function frontValidate(form: RuleForm): string | null {
   const p = form.pattern.trim();
   if (!p) return "일치시킬 내용을 입력해야 합니다";

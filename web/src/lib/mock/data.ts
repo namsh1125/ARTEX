@@ -468,7 +468,7 @@ export const assets: Asset[] = [
     params: [{ name: "q", in: "query" }],
     last_seen: T("2026-07-26T02:14:00Z"),
   },
-  // 内网资产（DMZ→内网横向发现）
+  // 내부망 자산(DMZ에서 측면 이동하여 발견)
   {
     id: 19,
     type: "ip",
@@ -569,9 +569,9 @@ export const assetCounts: Record<string, number> = assets.reduce<Record<string, 
   return m;
 }, {});
 
-// assetRef 把资产 id 变成 finding 上挂的资产引用(label 与后端 coverageNodeLabel
-// 的取值顺序一致:URL > 域名 > IP > 应用名)。「按资产」视图的树就是靠这些引用
-// 把发现挂到资产上的。
+// assetRef는 자산 ID를 finding의 자산 참조로 변환합니다. 라벨 우선순위는 백엔드와 같은
+// URL > 도메인 > IP > 앱 이름이며 자산별 트리가 이 참조로
+// 발견 사항을 자산에 연결합니다.
 function assetRef(id: number): FindingAsset {
   const asset = assets.find((candidate) => candidate.id === id);
   if (!asset) throw new Error(`mock assetRef: unknown asset ${id}`);
@@ -710,7 +710,7 @@ export const findings: Finding[] = [
     task_description: "shop.acme.com 결제 및 주문 흐름",
     ts: T("2026-07-23T15:00:00Z"),
   },
-  // ── 外网→内网纵深链路上的高危发现（active task）──
+  // ── 외부망→내부망 심화 경로의 고위험 발견 사항(활성 작업) ──
   {
     id: "f-11",
     vulnclass: "Hardcoded Credentials",
@@ -814,9 +814,9 @@ export const findings: Finding[] = [
 ];
 
 // ── Exploration graph (active task) ──────────────────────────────────────────
-// 现行模型：根是 fact/state=origin（渲染为「起点」）；payload 为 JSON 字符串，
-// goal 取 text、其余取 summary。结构：根→目标(spawns)→意图(spawns)→事实/漏洞(yields)，
-// 漏洞→目标(proves)，提示→意图(derived_from)。
+// 모델: 루트는 fact/state=origin(시작점 표시), payload는 JSON 문자열입니다.
+// goal은 text, 나머지는 summary를 사용합니다. 루트→목표→의도(spawns)→사실/취약점(yields),
+// 취약점→목표(proves), 힌트→의도(derived_from) 관계입니다.
 const P = (o: Record<string, string>) => JSON.stringify(o);
 
 export const explorationGraph: { nodes: TaskNode[]; edges: Edge[] } = {
@@ -831,7 +831,7 @@ export const explorationGraph: { nodes: TaskNode[]; edges: Edge[] } = {
       ts: T("2026-07-24T09:12:00Z"),
     },
 
-    // ── 目标（由 goals agent 拆解，随发现逐步加码到内网靶标）──
+    // ── goals Agent가 분해하고 발견에 따라 내부망 대상으로 확장하는 목표 ──
     {
       id: "g1",
       type: "goal",
@@ -869,7 +869,7 @@ export const explorationGraph: { nodes: TaskNode[]; edges: Edge[] } = {
       ts: T("2026-07-25T20:00:00Z"),
     },
 
-    // ── 第 1 层 · 外网侦察 / 外部漏洞 ──
+    // ── 1단계: 외부망 정찰 / 외부 취약점 ──
     {
       id: "i1",
       type: "intent",
@@ -925,7 +925,7 @@ export const explorationGraph: { nodes: TaskNode[]; edges: Edge[] } = {
       ts: T("2026-07-25T20:20:00Z"),
     },
 
-    // ── 第 2 层 · 突破 DMZ 建立立足点 ──
+    // ── 2단계: DMZ 진입과 거점 확보 ──
     {
       id: "i6",
       type: "intent",
@@ -954,7 +954,7 @@ export const explorationGraph: { nodes: TaskNode[]; edges: Edge[] } = {
       ts: T("2026-07-25T16:00:00Z"),
     },
 
-    // ── 第 3 层 · 内网横向纵深（多层测试）──
+    // ── 3단계: 내부망 측면 이동 및 심화 테스트 ──
     {
       id: "i9",
       type: "intent",
@@ -1001,7 +1001,7 @@ export const explorationGraph: { nodes: TaskNode[]; edges: Edge[] } = {
       ts: T("2026-07-25T23:50:00Z"),
     },
 
-    // ── 事实 ──
+    // ── 사실 ──
     {
       id: "fa1",
       type: "fact",
@@ -1111,7 +1111,7 @@ export const explorationGraph: { nodes: TaskNode[]; edges: Edge[] } = {
       ts: T("2026-07-25T23:20:00Z"),
     },
 
-    // ── 漏洞 ──
+    // ── 취약점 ──
     {
       id: "fi1",
       type: "finding",
@@ -1194,7 +1194,7 @@ export const explorationGraph: { nodes: TaskNode[]; edges: Edge[] } = {
       ts: T("2026-07-26T00:20:00Z"),
     },
 
-    // ── 提示（主 agent 注入）──
+    // ── 주 Agent가 주입하는 힌트 ──
     {
       id: "h1",
       type: "hint",
@@ -1224,12 +1224,12 @@ export const explorationGraph: { nodes: TaskNode[]; edges: Edge[] } = {
     },
   ],
   edges: [
-    // 根 → 目标
+    // 루트 → 목표
     { src: "root", dst: "g1", rel: "spawns" },
     { src: "root", dst: "g2", rel: "spawns" },
     { src: "root", dst: "g3", rel: "spawns" },
     { src: "root", dst: "g4", rel: "spawns" },
-    // 目标 → 意图
+    // 목표 → 의도
     { src: "g1", dst: "i1", rel: "spawns" },
     { src: "g1", dst: "i2", rel: "spawns" },
     { src: "g1", dst: "i3", rel: "spawns" },
@@ -1244,7 +1244,7 @@ export const explorationGraph: { nodes: TaskNode[]; edges: Edge[] } = {
     { src: "g4", dst: "i11", rel: "spawns" },
     { src: "g4", dst: "i12", rel: "spawns" },
     { src: "g4", dst: "i13", rel: "spawns" },
-    // 意图 → 事实 / 漏洞（产出）
+    // 의도 → 사실 / 취약점(산출물)
     { src: "i1", dst: "fa1", rel: "yields" },
     { src: "i4", dst: "fa2", rel: "yields" },
     { src: "i2", dst: "fi1", rel: "yields" },
@@ -1266,7 +1266,7 @@ export const explorationGraph: { nodes: TaskNode[]; edges: Edge[] } = {
     { src: "i12", dst: "fa10", rel: "yields" },
     { src: "i12", dst: "fiKerb", rel: "yields" },
     { src: "i13", dst: "fiDC", rel: "yields" },
-    // 事实 → 新意图（事实驱动的多层递进）
+    // 사실 → 새 의도(사실에 따른 단계별 확장)
     { src: "fa3", dst: "i7", rel: "derived_from" },
     { src: "fa4", dst: "i8", rel: "derived_from" },
     { src: "fa4", dst: "i9", rel: "derived_from" },
@@ -1275,11 +1275,11 @@ export const explorationGraph: { nodes: TaskNode[]; edges: Edge[] } = {
     { src: "fa7", dst: "i12", rel: "derived_from" },
     { src: "fa9", dst: "i13", rel: "derived_from" },
     { src: "fa10", dst: "i13", rel: "derived_from" },
-    // 提示 → 意图
+    // 힌트 → 의도
     { src: "h1", dst: "i2", rel: "derived_from" },
     { src: "h2", dst: "i11", rel: "derived_from" },
     { src: "h3", dst: "i10", rel: "derived_from" },
-    // 漏洞 → 证明目标达成
+    // 취약점 → 목표 달성 증명
     { src: "fi1", dst: "g1", rel: "proves" },
     { src: "fiRce", dst: "g3", rel: "proves" },
     { src: "fiDC", dst: "g4", rel: "proves" },
@@ -1291,13 +1291,13 @@ export const frontier: TaskNode[] = explorationGraph.nodes.filter(
   (n) => n.type === "intent" && (n.state === "open" || n.state === "running"),
 );
 
-// ── Activity（执行过程）─────────────────────────────────────────────────────
-// 会话由 sessions-tab 从「意图」派生（session.id = intent.id），transcript = 匹配
-// intent_id 的活动流。planner=worker "planner"、主 agent=worker "mainagent"。
-// 每个 worker 会话含完整工具执行链（tool_use → tool_result → …→ result）。
+// ── Activity(실행 과정) ─────────────────────────────────────────────────────
+// sessions-tab이 의도에서 세션을 만들며 session.id=intent.id입니다. transcript는
+// intent_id가 일치하는 활동 피드입니다. planner/mainagent는 각각 같은 이름의 worker입니다.
+// worker 세션마다 tool_use → tool_result → … → result 전체 실행 흐름을 포함합니다.
 export const activity: Activity[] = [
-  // planner —— 每轮完整决策链：读态势 → 拉 worker 产出对照 → 判目标 → add_intent 派方向
-  // ── 第 0 轮 · 目标拆解与首批意图（2026-07-24 09:12）──
+  // planner의 판단 흐름: 상황 확인 → worker 산출물 대조 → 목표 판단 → add_intent로 방향 배정
+  // ── 0회차: 목표 분해와 첫 의도 묶음(2026-07-24 09:12) ──
   { seq: 1000, worker: "planner", ts: T("2026-07-24T09:12:10Z"), kind: "round", summary: "제 0 회 · 목표 분해" },
   {
     seq: 1001,
@@ -1358,7 +1358,7 @@ export const activity: Activity[] = [
       "이번 실행에서 첫 항목 파생: 4 개 의도: i1 자산 정찰、i2 관리자 비밀번호、i4 인젝션、i5 API 권한 우회.g1 사용 i2、g2 사용 i4/i5, 두 목표에 독립적인 진입점이 있습니다. 다음을 기다림: worker 사실이 생성되면 파생 관계에 따라 확장.",
   },
 
-  // ── 第 1 轮 · 攻击面加码（2026-07-25 14:12）──
+  // ── 1회차: 공격 표면 확장(2026-07-25 14:12) ──
   { seq: 1100, worker: "planner", ts: T("2026-07-25T14:12:00Z"), kind: "round", summary: "제 1 회 · 공격 표면 확장" },
   {
     seq: 1101,
@@ -1418,7 +1418,7 @@ export const activity: Activity[] = [
       "상황 변화: 소스 코드 + 하드코딩된 내부망 비밀번호 + Fastjson RCE 새 진입 경로를 형성합니다. 목표 계층에 등록 요청 g3「외부망에서 진입 DMZ, 내부망 거점 확보」, 배정 대상: i6(핑거프린트/CVE 연결)、i7(발생 조건 RCE).DMZ 권한 상승 단계의 의존 대상: shell, 할 일에 기록하고 다음 실행에서 배정.",
   },
 
-  // ── 第 2 轮 · 立足点已建，转内网（2026-07-25 20:25）──
+  // ── 2회차: 거점 확보 후 내부망 전환(2026-07-25 20:25) ──
   {
     seq: 1200,
     worker: "planner",
@@ -1501,7 +1501,7 @@ export const activity: Activity[] = [
       "g3 달성하여 공격 표면이 외부망에서 내부망으로 이동. 등록 요청: g4「내부망 측면 이동 및 대상 도메인 컨트롤러 제어 DC01」, 배정 i9(호스트 탐색)+ i10/i11/i12 세 병렬 측면 이동. 인증 정보 재사용의 연결 지점: faCreds 외부망 소스에서 노출된 비밀번호를 내부망 측면 이동에 활용.",
   },
 
-  // ── 第 3 轮 · 靶标达成复盘（2026-07-26 00:25）──
+  // ── 3회차: 목표 달성 검토(2026-07-26 00:25) ──
   { seq: 1300, worker: "planner", ts: T("2026-07-26T00:25:00Z"), kind: "round", summary: "제 3 회 · 대상 달성 검토" },
   {
     seq: 1301,
@@ -1559,7 +1559,7 @@ export const activity: Activity[] = [
       "g4 완료. 외부망과 내부망 경로 연결(외부망 RCE → DMZ → 내부망 → 도메인 컨트롤러). 미확인 방향을 차례로 대조: g2「사용자 민감 데이터 읽기」는 아직 마지막 단계가 남아 있으나 기존의 i3(관리자 사용자 인터페이스)+ i5(API IDOR)에서 해당 방향을 다루며 모두 다음 상태: running.이번 실행에는 본질적으로 새로운 미확인 방향이 없어 절제 원칙 적용 0 새 의도를 만들지 않고 대기: i3/i5 결과.",
   },
 
-  // ── 第 4 轮 · 后台达成，收敛 g2（2026-07-26 03:55）──
+  // ── 4회차: 관리자 페이지 목표 달성 후 g2 집중(2026-07-26 03:55) ──
   {
     seq: 1400,
     worker: "planner",
@@ -1632,7 +1632,7 @@ export const activity: Activity[] = [
       "g1 달성(4/4 내부에서 이미 met 3 개: g1/g3/g4).g2 정량적 기준 엄수: 관리자 페이지 진입만으로는 부족하며 대량 사용자 데이터를 확보해야 확정. 다음을 i3/i5 상향한 값: priority 9 데이터 확보 의도로 구체화했으며 다음을 기다림: worker 결과를 받으면 전체 작업 종료 가능.",
   },
 
-  // work#1 · i1 子域枚举与端口扫描（done）
+  // work#1 · i1 하위 도메인 열거와 포트 스캔(done)
   {
     seq: 10,
     worker: "work#1",
@@ -1717,7 +1717,7 @@ export const activity: Activity[] = [
     cache_write_tokens: 9000,
   },
 
-  // work#2 · i2 后台默认口令（done，证明 g1）
+  // work#2 · i2 관리자 기본 암호(done, g1 증명)
   {
     seq: 20,
     worker: "work#2",
@@ -1822,7 +1822,7 @@ export const activity: Activity[] = [
     cache_write_tokens: 7200,
   },
 
-  // work#4 · i4 SQL 注入（done）
+  // work#4 · i4 SQL 인젝션(done)
   {
     seq: 40,
     worker: "work#4",
@@ -1987,7 +1987,7 @@ export const activity: Activity[] = [
     summary: "일괄 순회 중 id 범위에서 무단 접근 가능한 데이터 규모 평가(차단 규칙을 유발하지 않도록 아직 내보내지 않음).",
   },
 
-  // work#3 · i3 后台用户接口枚举（running）
+  // work#3 · i3 관리자 사용자 API 열거(running)
   {
     seq: 60,
     worker: "work#3",
@@ -2026,7 +2026,7 @@ export const activity: Activity[] = [
     summary: "대량 사용자 데이터 접근 경로 확인. 내보내기 동작이 파괴적 작업/데이터 유출 규칙과 일치하여 차단 승인 요청 후 대기.",
   },
 
-  // workG · ig .git 源码泄露与硬编码凭据（done）
+  // workG · ig .git 소스 유출과 하드코딩 자격 증명(done)
   {
     seq: 310,
     worker: "workG",
@@ -2111,7 +2111,7 @@ export const activity: Activity[] = [
     cache_write_tokens: 8000,
   },
 
-  // work#6 · i6 shop 指纹与 CVE 关联（done）
+  // work#6 · i6 shop 지문 및 CVE 연결(done)
   {
     seq: 320,
     worker: "work#6",
@@ -2176,7 +2176,7 @@ export const activity: Activity[] = [
     cache_write_tokens: 6000,
   },
 
-  // work#7 · i7 反序列化 RCE 拿反弹 shell（done，证明 g3）
+  // work#7 · i7 역직렬화 RCE로 역방향 셸 확보(done, g3 증명)
   {
     seq: 330,
     worker: "work#7",
@@ -2272,7 +2272,7 @@ export const activity: Activity[] = [
     cache_write_tokens: 12000,
   },
 
-  // work#8 · i8 立足点提权（done）
+  // work#8 · i8 거점 권한 상승(done)
   {
     seq: 340,
     worker: "work#8",
@@ -2346,7 +2346,7 @@ export const activity: Activity[] = [
     cache_write_tokens: 7000,
   },
 
-  // work#9 · i9 内网主机发现（done）
+  // work#9 · i9 내부망 호스트 발견(done)
   {
     seq: 350,
     worker: "work#9",
@@ -2389,7 +2389,7 @@ export const activity: Activity[] = [
     cache_write_tokens: 8000,
   },
 
-  // work#10 · i10 内网凭据复用（running）
+  // work#10 · i10 내부망 자격 증명 재사용(running)
   {
     seq: 360,
     worker: "work#10",
@@ -2428,7 +2428,7 @@ export const activity: Activity[] = [
     summary: "FS01 제어를 확보했으며 추가 인증 정보와 민감 파일을 찾기 위해 공유 디렉터리 열거 중……",
   },
 
-  // work#11 · i11 Jenkins 未授权 RCE（done）
+  // work#11 · i11 Jenkins 미인증 RCE(done)
   {
     seq: 370,
     worker: "work#11",
@@ -2597,7 +2597,7 @@ export const activity: Activity[] = [
     cache_write_tokens: 10000,
   },
 
-  // work#13 · i13 拿下域控 DC01（done，证明 g4）
+  // work#13 · i13 도메인 컨트롤러 DC01 확보(done, g4 증명)
   {
     seq: 390,
     worker: "work#13",
@@ -2692,7 +2692,7 @@ export const activity: Activity[] = [
     cache_write_tokens: 14000,
   },
 
-  // 主 agent（人在环路对话）
+  // 주 Agent(사용자 참여 대화)
   { seq: 70, worker: "mainagent", ts: T("2026-07-26T03:18:00Z"), kind: "user", summary: "관리자 페이지는 어디부터 확인할까요?" },
   {
     seq: 71,
@@ -3020,7 +3020,7 @@ export const llmProfiles: LLMProfile[] = [
     is_default: true,
     priority: 0,
     pool_exclude: false,
-    // anthropic 的字段名固定，故 max_tokens_field 恒为空。
+    // anthropic은 필드 이름이 고정되어 max_tokens_field를 항상 비워 둡니다.
     max_tokens: 0,
     max_tokens_field: "",
   },
@@ -3039,7 +3039,7 @@ export const llmProfiles: LLMProfile[] = [
     is_default: false,
     priority: 10,
     pool_exclude: false,
-    // openai 格式 + 推理模型：上限走 max_completion_tokens。
+    // openai 추론 모델은 출력 한도에 max_completion_tokens를 사용합니다.
     max_tokens: 8192,
     max_tokens_field: "max_completion_tokens",
   },
@@ -3340,8 +3340,8 @@ export const settings: Settings = {
   noa_compaction: false,
 };
 
-// ── LLM 轮询（故障转移）──────────────────────────────────────────────────────
-// demo：激活配置正常，备用配置刚因余额不足熔断，正在冷却。
+// ── LLM 순환 선택(장애 조치) ──────────────────────────────────────────────────────
+// 데모: 활성 설정은 정상, 예비 설정은 잔액 부족으로 회로가 차단되어 대기 중입니다.
 export const llmPool: LLMPoolStatus = {
   enabled: true,
   bind_fallback: false,
@@ -3794,7 +3794,7 @@ export const conversationMessages: Record<number, Activity[]> = {
   ],
 };
 
-// ── 资产测试覆盖度（/tasks/{id}/coverage）──
+// ── 자산 테스트 커버리지(/tasks/{id}/coverage) ──
 export const coverage = {
   enabled: true,
   scope_rows: 4,
@@ -3809,7 +3809,7 @@ export const coverage = {
   ],
 };
 
-// ── 资产覆盖图（/tasks/{id}/coverage-graph）──
+// ── 자산 커버리지 그래프(/tasks/{id}/coverage-graph) ──
 export const coverageGraph = {
   nodes: [
     { key: "c:1", kind: "company", label: "Acme Corp", tested: false, in_scope: false, company_id: 1 },
@@ -3937,8 +3937,8 @@ export const coverageGraph = {
   ],
 };
 
-// ── 资产在本任务关联的意图/事实/发现（/tasks/{id}/asset-refs）──
-// 播报板 demo:探索节点 → 其锚定资产。真实后端读 exploration_anchors,mock 里静态给几条。
+// ── 작업에서 자산에 연결된 의도/사실/발견 사항(/tasks/{id}/asset-refs) ──
+// 방송 데모의 노드별 자산. 실제 백엔드는 exploration_anchors를 읽고 mock은 정적 예제를 제공합니다.
 const NODE_ASSETS: Record<string, number[]> = {
   fi1: [3],
   fi2: [2, 4],
@@ -3968,7 +3968,7 @@ export function assetRefsFor(_assetId: number) {
   };
 }
 
-// ── 工作空间文件管理器（/workspace/*，demo：静态示例树）──
+// ── 작업 공간 파일 관리자(/workspace/*, 정적 예제 트리) ──
 const WS_TREE: Record<string, { name: string; dir: boolean; size: number; content?: string }[]> = {
   "": [
     { name: "t-001", dir: true, size: 0 },
@@ -4031,7 +4031,7 @@ export function workspaceRead(path: string) {
   return { path: key, size: f?.size ?? 0, binary: false, content: f?.content ?? "" };
 }
 
-// ── 工具执行历史（/commands）──
+// ── 도구 실행 이력(/commands) ──
 export const commandRecords = [
   {
     id: 1,
@@ -4085,7 +4085,7 @@ export const commandRecords = [
   },
 ];
 
-// ── LLM 录制（/llm/records、/llm/records/{id}）──
+// ── LLM 기록(/llm/records, /llm/records/{id}) ──
 export const llmRecords = [
   {
     id: 1,
@@ -4181,7 +4181,7 @@ export function llmRecordDetail(id: number, records = llmRecords) {
       null,
       2,
     ),
-    // HTTP 原文：请求含被归一化视图丢弃的完整工具 schema，响应为原始 SSE 帧。
+    // HTTP 원문: 요청은 정규화 보기에서 생략된 전체 도구 schema, 응답은 원래 SSE 프레임입니다.
     raw_request: JSON.stringify({
       model: item.model,
       max_tokens: 8192,

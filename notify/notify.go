@@ -1,37 +1,37 @@
-// Package notify 实现漏洞发现的 IM / 邮件推送渠道适配层。
+// Package notify는 취약점 발견의 IM/메일 알림 채널 어댑터 계층입니다.
 //
-// 分层：本包是**叶子包**，只依赖标准库。它不认识数据库、不认识 server。渠道配置
-// 以 map[string]any 传入（对应 notification_channels.config 这一 JSONB 列），
-// 待推送内容以 Message 传入。这样拆开的好处是：签名计算、UTF-8 截断、过滤匹配这些
-// 真正容易出错的地方可以脱离 PostgreSQL 单测，宿主只需在 server 侧做编排。
+// 표준 라이브러리만 의존하는 말단 패키지로 DB/server를 알지 못합니다. 채널 설정은
+// notification_channels.config JSONB에 해당하는 map[string]any,
+// 알림 내용은 Message로 받습니다. 따라서 서명, UTF-8 잘림, 필터 같은 오류 가능 부분을
+// PostgreSQL 없이 단위 테스트하고 server는 조정만 담당할 수 있습니다.
 //
-// 并发约定：Channel 的实现必须**无状态**。同一个 Channel 实例会被多个渠道配置
-// （甚至同一渠道的多个机器人实例）并发复用，所有凭据一律从 cfg 参数传入，
-// 不允许把 webhook URL 之类的东西缓存进实现自身的字段。
+// 동시성 계약: Channel 구현은 상태를 가지면 안 됩니다. 여러 채널 설정이나
+// 동일 채널의 여러 봇이 같은 인스턴스를 동시에 재사용하므로 자격 증명은 cfg로 받고
+// webhook URL 등을 구현 필드에 캐시하면 안 됩니다.
 package notify
 
-// 渠道类型标识。取值同时是 notification_channels.kind 的合法集合，由 server 侧
-// 白名单校验（与 findings.status 同理，不用 DB CHECK，方便后续加渠道）。
+// 채널 유형 식별자는 notification_channels.kind의 허용 값이며 server에서 검증합니다.
+// findings.status처럼 DB CHECK를 쓰지 않아 향후 채널 추가가 쉽습니다.
 const (
-	KindDingTalk = "dingtalk" // 钉钉自定义机器人
-	KindFeishu   = "feishu"   // 飞书(含 Lark)自定义机器人
-	KindWeCom    = "wecom"    // 企业微信群机器人
-	KindWebhook  = "webhook"  // 通用 Webhook：自定义方法/头/JSON 模板
+	KindDingTalk = "dingtalk" // DingTalk 사용자 정의 봇
+	KindFeishu   = "feishu"   // Feishu/Lark 사용자 정의 봇
+	KindWeCom    = "wecom"    // WeCom 그룹 봇
+	KindWebhook  = "webhook"  // 일반 Webhook: 메서드/헤더/JSON 템플릿 사용자 지정
 	KindTelegram = "telegram" // Telegram Bot API
-	KindEmail    = "email"    // SMTP 邮件
+	KindEmail    = "email"    // SMTP 메일
 )
 
-// 事件类型，对应 notification_events.kind。
+// notification_events.kind에 대응하는 이벤트 유형입니다.
 const (
 	EventFindingCreated       = "finding_created"
 	EventFindingStatusChanged = "finding_status_changed"
 )
 
-// InitKind 是 config 里为空的 kind 的兜底值。
+// InitKind는 config의 kind가 비어 있을 때 기본값입니다.
 const InitKind = KindDingTalk
 
-// severityRank 把漏洞级别映射成可比较的序数。未知级别返回 0，因此任何
-// min_severity 设置都会把未知级别挡在外面——存疑时不推，避免误报刷屏。
+// severityRank는 비교 가능한 등급 순번을 반환합니다. 알 수 없으면 0이므로 비어 있지 않은
+// min_severity가 차단해 불확실한 오탐 알림의 범람을 막습니다.
 var severityRank = map[string]int{
 	"low":      1,
 	"medium":   2,
@@ -39,54 +39,54 @@ var severityRank = map[string]int{
 	"critical": 4,
 }
 
-// SeverityRank 返回级别的序数；未知级别返回 0。
+// SeverityRank는 등급 순번을 반환하며 알 수 없으면 0입니다.
 func SeverityRank(severity string) int { return severityRank[severity] }
 
-// SeverityLabel 返回带 emoji 的中文级别名，用于消息标题与卡片配色。
-// 未知级别原样回显，不臆造。
+// SeverityLabel은 제목/카드 색상에 사용할 이모지 포함 한국어 등급 이름입니다.
+// 알 수 없는 등급은 지어내지 않고 그대로 반환합니다.
 func SeverityLabel(severity string) string {
 	switch severity {
 	case "critical":
-		return "🔴 严重"
+		return "🔴 치명적"
 	case "high":
-		return "🟠 高危"
+		return "🟠 높음"
 	case "medium":
-		return "🟡 中危"
+		return "🟡 보통"
 	case "low":
-		return "🔵 低危"
+		return "🔵 낮음"
 	default:
 		return severity
 	}
 }
 
-// StatusLabel 把处置状态翻译成中文，用于状态变更消息。
+// StatusLabel은 상태 변경 메시지에 사용할 한국어 처리 상태를 반환합니다.
 func StatusLabel(status string) string {
 	switch status {
 	case "pending":
-		return "待处理"
+		return "처리 대기"
 	case "in_progress":
-		return "处理中"
+		return "처리 중"
 	case "confirmed":
-		return "已确认"
+		return "확인됨"
 	case "resolved":
-		return "已处理"
+		return "처리됨"
 	case "fixed":
-		return "已修复"
+		return "수정됨"
 	case "false_positive":
-		return "误报"
+		return "오탐"
 	case "ignored":
-		return "忽略"
+		return "무시"
 	case "duplicate":
-		return "重复"
+		return "중복"
 	case "risk_accepted":
-		return "风险接受"
+		return "위험 수용"
 	default:
 		return status
 	}
 }
 
-// AtLeast 判断 severity 是否达到 min 门槛。min 为空表示不设门槛，一律通过。
-// 注意未知 severity 的序数为 0，会被任何非空 min 拒掉（见 severityRank 注释）。
+// AtLeast는 severity가 min 이상인지 판정하며 min이 비면 모두 통과합니다.
+// 알 수 없는 severity는 0이므로 비어 있지 않은 min이면 거부합니다(severityRank 참고).
 func AtLeast(severity, min string) bool {
 	if min == "" {
 		return true

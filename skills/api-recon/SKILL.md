@@ -118,13 +118,13 @@ description: 웹사이트의 API 인터페이스를 수집할 때 사용하는 �
 ## 실행 로드맵
 
 ```
-Phase 0 分类 + OUTDIR
-  → 门禁 A → Phase 1 harvest（★ 立刻运行 ★）
-  → Phase 1b 参数逆向
-  → Phase 2 鉴权三道门 → config.json
-  → 门禁 B → Phase 3 运行时 + 参数矩阵
-  → Phase 4 权限树（必要时）→ 重跑 Phase 3
-  → Phase 5 合并报告 + insert_assets批量插入所有发现的服务、端点api资产，无论如何插入时不允许漏掉已发现的资产
+Phase 0 분류 + OUTDIR
+  → 게이트 A → Phase 1 harvest(★ 즉시 실행 ★)
+  → Phase 1b 매개변수 역분석
+  → Phase 2 인증 게이트 3개 → config.json
+  → 게이트 B → Phase 3 런타임 + 매개변수 매트릭스
+  → Phase 4 권한 트리(필요시) → Phase 3 재실행
+  → Phase 5 보고서 병합 + insert_assets로 발견한 모든 서비스·엔드포인트 API 자산 일괄 저장. 발견한 자산을 빠뜨리지 않습니다.
 ```
 
 순서대로 확인합니다. **앞 항목을 완료하기 전에는 다음 Phase로 넘어가지 않습니다.**

@@ -26,13 +26,13 @@ func findingPaginationParam(raw string, fallback, upperBound int) int {
 }
 
 // findingFilterFromQuery builds the shared findings filter from a request's
-// query string. 列表 / 分组 / 资产树 / 导出走同一份解析,新增筛选项只改这里。
+// query string. 목록/그룹/자산 트리/내보내기가 같은 해석을 공유하므로 새 필터는 여기만 수정한다.
 func findingFilterFromQuery(q url.Values) db.FindingFilter {
 	return db.FindingFilter{
 		Severity:  normFilter(q.Get("severity")),
 		Status:    normFilter(q.Get("status")),
 		VulnClass: normFilter(q.Get("vulnclass")),
-		// task_id(独立于会切到「按任务节点」分支的 task 参数):全局表按任务筛选。
+		// task_id는 작업 노드 분기로 전환하는 task 인자와 별개이며 전역 표의 작업 필터다.
 		TaskID:     normFilter(q.Get("task_id")),
 		Query:      q.Get("q"),
 		Sort:       q.Get("sort"),
@@ -40,7 +40,7 @@ func findingFilterFromQuery(q url.Values) db.FindingFilter {
 	}
 }
 
-// findingAssetTree serves the「按资产」view's left-hand tree: every asset that
+// findingAssetTree serves the asset-grouped view's left-hand tree: every asset that
 // carries at least one matching finding, plus the ancestors needed to place it.
 func (s *Server) findingAssetTree(w http.ResponseWriter, r *http.Request) {
 	tree, err := s.m.pg.BuildFindingAssetTree(findingFilterFromQuery(r.URL.Query()))
@@ -102,7 +102,7 @@ func (s *Server) deepenFinding(w http.ResponseWriter, r *http.Request) {
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		var tooLarge *http.MaxBytesError
 		if errors.As(err, &tooLarge) {
-			writeErr(w, http.StatusRequestEntityTooLarge, "请求正文过大")
+			writeErr(w, http.StatusRequestEntityTooLarge, "요청 본문이 너무 큽니다")
 		} else {
 			writeErr(w, http.StatusBadRequest, "bad json: "+err.Error())
 		}
@@ -145,7 +145,7 @@ func (s *Server) deepenFinding(w http.ResponseWriter, r *http.Request) {
 	audit := db.Activity{
 		Worker:  "system",
 		Kind:    "text",
-		Summary: "人工提交漏洞深入利用意图",
+		Summary: "취약점 심층 악용 의도 수동 제출",
 		Detail:  description,
 	}
 	intentID, audit, err := t.Store.AddFindingFollowUpIntent(id, *finding.NodeID, description, audit)

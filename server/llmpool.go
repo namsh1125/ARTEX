@@ -10,11 +10,11 @@ import (
 	"github.com/Autumn-27/norma/llm"
 )
 
-// LLM 轮询(故障转移)的服务端接线。设计见 docs/LLM轮询设计.md：
-//   - 全局激活配置这条路径(agent 未绑定、任务未 pin)才轮询;
-//   - 绑定/pin 的路径默认独占该配置,失败即失败(可由 llm_pool_bind_fallback 打开兜底);
-//   - 链序 = 激活配置 → 其余按 priority DESC,排除 pool_exclude 的;
-//   - 熔断状态进程级共享(s.llmHealth),重建 pool 不清空。
+// LLM 순환 선택(장애 조치) 서버 연결. docs/LLM轮询设计.md 참고.
+//   - 에이전트 연결과 작업 pin이 없는 전역 활성 설정 경로만 순환 선택.
+//   - 연결/pin 경로는 기본적으로 해당 설정을 독점하며 실패 시 종료(llm_pool_bind_fallback으로 대체 허용).
+//   - 체인 순서: 활성 설정 → pool_exclude 제외 후 priority 내림차순.
+//   - 차단 상태는 프로세스 전체 s.llmHealth로 공유하며 pool 재생성 시 유지.
 
 // newLLMHealthRegistry builds the process-wide circuit-breaker registry, mirroring
 // state into PG so a cooling-off window survives a restart. Writes are async and
@@ -31,7 +31,7 @@ func newLLMHealthRegistry(pg *db.DB) *llmpool.Registry {
 		}
 		go func() {
 			if err := pg.SaveLLMHealth(h); err != nil {
-				log.Printf("[llmpool] 熔断状态落库失败: %v", err)
+				log.Printf("[llmpool] 차단 상태 저장 실패: %v", err)
 			}
 		}()
 	}
@@ -48,7 +48,7 @@ func newLLMHealthRegistry(pg *db.DB) *llmpool.Registry {
 				st.OpenUntil = *h.OpenUntil
 			}
 			reg.Restore(h.ProfileID, st)
-			log.Printf("[llmpool] 恢复熔断状态: 配置 #%d 冷却至 %s", h.ProfileID, st.OpenUntil.Format(time.RFC3339))
+			log.Printf("[llmpool] 차단 상태 복원: 설정 #%d 대기 종료 %s", h.ProfileID, st.OpenUntil.Format(time.RFC3339))
 		}
 	}
 	return reg
@@ -83,7 +83,7 @@ func (s *Server) poolChain(headID int64, headProv llm.Provider, headCfg agent.Co
 	}
 	profs, err := s.m.pg.PoolProfiles()
 	if err != nil {
-		log.Printf("[llmpool] 读取轮询链失败: %v", err)
+		log.Printf("[llmpool] 순환 선택 체인 읽기 실패: %v", err)
 		return nil
 	}
 	var head *db.LLMProfile
@@ -136,7 +136,7 @@ func (s *Server) poolForActive(activeID int64, prov llm.Provider, cfg agent.Conf
 	for _, m := range pool.Members() {
 		names = append(names, m.Name+"/"+m.Model)
 	}
-	log.Printf("[llmpool] LLM 轮询已启用，链路(%d): %v", len(names), names)
+	log.Printf("[llmpool] LLM 순환 선택 활성화, 체인(%d): %v", len(names), names)
 	return pool
 }
 

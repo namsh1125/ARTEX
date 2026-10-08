@@ -1,5 +1,5 @@
 // Centralised status → color/label semantics, reused across the whole app.
-// Spec §8.3: 意图 / 覆盖 / 任务 / 严重度 each have a consistent color set.
+// 명세 8.3: 의도/커버리지/작업/심각도별로 일관된 색상을 사용합니다.
 
 export type Tone = "neutral" | "blue" | "green" | "amber" | "red" | "rose" | "violet" | "slate";
 
@@ -9,7 +9,7 @@ export const toneClasses: Record<Tone, string> = {
   green: "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border-emerald-500/20",
   amber: "bg-amber-500/15 text-amber-600 dark:text-amber-400 border-amber-500/20",
   red: "bg-red-500/15 text-red-600 dark:text-red-400 border-red-500/20",
-  // rose 用作「严重」——实心高强调,视觉上明显高于「高危」的软红描边。
+  // 치명적은 채워진 rose 색으로 강조하여 높음의 옅은 빨간 테두리보다 강하게 표시합니다.
   rose: "bg-rose-600 text-white border-rose-600 dark:bg-rose-600 dark:text-white",
   violet: "bg-violet-500/15 text-violet-600 dark:text-violet-400 border-violet-500/20",
   slate: "bg-slate-500/15 text-slate-600 dark:text-slate-400 border-slate-500/20",
@@ -36,13 +36,13 @@ const intent: Record<string, StatusMeta> = {
   running: { label: "실행 중", tone: "blue" },
   paused: { label: "일시 중지됨", tone: "amber" },
   done: { label: "완료됨", tone: "green" },
-  // blocked = 模型/API/网络故障重试用尽，这条意图基本没真正探成（非目标拦截）。
+  // blocked는 모델/API/네트워크 재시도 소진으로 탐색이 거의 진행되지 않은 상태입니다(대상 차단 아님).
   blocked: { label: "실행 오류", tone: "red" },
-  // exhausted = 达到步数/时间预算被中途掐断、只写回部分结果（非方向已探尽）。
+  // exhausted는 단계/시간 예산으로 중단되어 일부 결과만 저장된 상태입니다(탐색 방향 소진 아님).
   exhausted: { label: "예산 소진", tone: "violet" },
-  // stopped = 历史软删除状态（保留,历史数据）。
+  // stopped는 호환성을 위해 유지하는 이전 논리 삭제 상태입니다.
   stopped: { label: "중지됨", tone: "slate" },
-  // deleted = 用户假删除了该意图（保留节点与血缘，删除原因见 delete_reason 字段）。
+  // deleted는 사용자 논리 삭제이며 노드/관계와 delete_reason을 유지합니다.
   deleted: { label: "삭제됨", tone: "slate" },
 };
 
@@ -99,8 +99,8 @@ const node: Record<string, StatusMeta> = {
   tombstoned: { label: "폐기", tone: "neutral" },
 };
 
-// 推送投递状态。sending 用 blue 而不是 amber：它不是「有问题」，
-// 而是「已被领取、正在发」，与 pending 的等待语义要能区分开。
+// 전송 중인 sending은 문제 상태가 아니므로 amber 대신 blue를 사용하여
+// 수령 후 전송 중인 상태와 pending 대기를 구분합니다.
 const delivery: Record<string, StatusMeta> = {
   pending: { label: "전송 대기", tone: "amber" },
   sending: { label: "전송 중", tone: "blue" },

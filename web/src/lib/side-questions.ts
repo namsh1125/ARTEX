@@ -41,9 +41,9 @@ async function request<T>(path: string, method = "GET", body?: unknown): Promise
 }
 
 export const sideAPI = {
-  // 历史必须归一化后再交给调用方:items 一旦不是数组,消费端的 setState updater 会抛,
-  // 而 React 会把 updater 的异常推迟到 render 阶段重抛 —— 那时调用方的 catch 已经够不着,
-  // 整页直接被错误边界接管。
+  // items가 배열이 아니면 소비자의 setState updater가 예외를 일으키므로 이력을 먼저 정규화합니다.
+  // React는 updater 예외를 렌더링까지 미뤄 다시 던지므로 호출자의 catch로 잡을 수 없고,
+  // 오류 경계가 전체 페이지를 대신 표시하게 됩니다.
   history: async (parent: string, before = 0) => {
     const data = await request<Partial<SideHistory>>(`${parent}/side-questions?before=${before}`);
     return {

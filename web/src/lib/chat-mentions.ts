@@ -1,4 +1,4 @@
-// Display labels are Korean; wireLabel preserves the backend mention protocol.
+// 새 멘션은 한국어로 작성하며 wireLabel은 기존 중국어 기록의 호환성을 유지한다.
 export const mentionKinds = [
   { kind: "finding", label: "취약점", wireLabel: "漏洞", alias: "finding" },
   { kind: "asset", label: "자산", wireLabel: "资产", alias: "asset" },
@@ -44,7 +44,7 @@ export function mentionSearch(query: string) {
 }
 
 export function mentionToken(item: ChatMention) {
-  const kind = mentionKinds.find((entry) => entry.kind === item.kind)?.wireLabel ?? "资产";
+  const kind = mentionKinds.find((entry) => entry.kind === item.kind)?.label ?? "자산";
   const label = item.label
     .replace(/[[\]]/g, (char) => (char === "[" ? "（" : "）"))
     .replace(/\s+/g, " ")
@@ -53,10 +53,10 @@ export function mentionToken(item: ChatMention) {
 }
 
 export function selectedMentions(value: string) {
-  return [...value.matchAll(/@\[(漏洞|资产|企业|接口|IP|应用|域名|子域名|服务)#([0-9]+)(?: ([^\]\r\n]*))?\]/g)].map(
+  return [...value.matchAll(/@\[(취약점|자산|기업|인터페이스|애플리케이션|도메인|하위 도메인|서비스|漏洞|资产|企业|接口|IP|应用|域名|子域名|服务)#([0-9]+)(?: ([^\]\r\n]*))?\]/g)].map(
     (match) => ({
       token: match[0],
-      label: `${mentionKinds.find((item) => item.wireLabel === match[1])?.label ?? match[1]} #${match[2]}${match[3] ? ` · ${match[3]}` : ""}`,
+      label: `${mentionKinds.find((item) => item.wireLabel === match[1] || item.label === match[1])?.label ?? match[1]} #${match[2]}${match[3] ? ` · ${match[3]}` : ""}`,
       start: match.index,
     }),
   );
