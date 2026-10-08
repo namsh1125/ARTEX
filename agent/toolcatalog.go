@@ -7,59 +7,59 @@ import (
 	actool "github.com/Autumn-27/norma/tool"
 )
 
-// 本文件把「内置工具」从纯代码变成可枚举、可被 DB 覆盖的目录：
-//   - BuiltinToolSeeds()：把三个执行 agent 的内置工具集展开成 seed 记录（key +
-//     描述 + 参数 schema + 默认绑定的 agent），供服务端开机幂等播种进 tools 表。
-//   - ToolResolve 钩子：运行时按 DB 里的 tools 行对已装配的工具做「按 agent 过滤 +
-//     覆盖描述/schema + 注入参数默认值」。key/handler 仍在代码层，DB 只改「散文与默认值」。
-// handler（Call 行为）永远来自代码——DB 改不了它，只能改模型看到的说明与缺省入参。
+// 내장 도구를 순수 코드에서 열거 및 DB 재정의 가능한 목록으로 제공합니다.
+//   - BuiltinToolSeeds(): 세 실행 Agent의 내장 도구 모음을 시드 레코드(key +
+//     설명 + 매개변수 schema + 기본 연결 Agent)로 펼쳐 서버 시작 시 tools 테이블에 멱등적으로 초기화합니다.
+//   - ToolResolve 훅: 실행 중 DB의 tools 행으로 조립된 도구를 Agent별 필터링하고
+//     설명/schema를 덮어쓰며 기본 매개변수를 주입합니다. key/handler는 코드에 유지하고 DB는 설명과 기본값만 수정합니다.
+// handler(Call 동작)는 항상 코드에서 가져오므로 DB가 바꿀 수 없습니다. 모델이 보는 설명과 기본 입력만 바뀝니다.
 
-// ToolSeed 是一个内置工具的可播种快照：key 即 CoreTool.Name()（与 handler 死绑，
-// UI 只读），Desc/Schema 取自代码里的工具定义，Agents 是代码默认把它给了哪些 agent。
+// ToolSeed는 내장 도구의 초기화 가능한 스냅샷입니다. key는 CoreTool.Name()으로 handler에 고정되며
+// UI에서 읽기 전용입니다. Desc/Schema는 코드 정의, Agents는 기본 연결 Agent 목록입니다.
 type ToolSeed struct {
-	Key    string         // = CoreTool.Name()，主键，不可改
-	Desc   string         // 顶层描述（可在 UI 覆盖）
-	Schema map[string]any // 参数 JSON-Schema（结构只读，description/default 可在 UI 改）
-	Agents []string       // 默认绑定的 agent key（worker/planner/mainagent）
+	Key    string         // = CoreTool.Name(), 기본 키, 변경 불가
+	Desc   string         // 최상위 설명(UI에서 재정의 가능)
+	Schema map[string]any // 매개변수 JSON-Schema(구조는 읽기 전용, description/default는 UI에서 수정 가능)
+	Agents []string       // 기본 연결 Agent 키(worker/planner/mainagent)
 }
 
-// builtinToolsByAgent 用一个「只读空壳」ToolSet（nil stores）构造每个执行 agent 的
-// 领域工具集。工具构造函数只把闭包塞进 Spec、构造期不解引用 store，所以 nil 安全——
-// 这些工具在这里只用来读 Name()/Description()/InputSchema()，绝不 Call。
+// builtinToolsByAgent는 읽기 전용 껍데기 ToolSet(nil stores)으로 각 실행 Agent의
+// 도메인 도구 모음을 만듭니다. 생성자는 Spec에 클로저만 넣고 store를 역참조하지 않아 nil이 안전합니다.
+// 여기서는 Name()/Description()/InputSchema()만 읽고 Call은 절대 실행하지 않습니다.
 //
-// 刻意【不含】SDK 通用工具 actool.DefaultTools()（Read/Write/Edit/MultiEdit/LS/Glob/
-// Grep/Bash）：它们每个 agent 都固定拥有、没有「绑定到谁」的取舍，且说明大多在 Prompt()
-// 里（本表只覆盖 Description()，会造成半覆盖误导）。不 seed → 无 DB 行 → ToolResolve
-// 原样放行、不覆盖，行为与从前一致。只有 artex 自己的领域工具入表可管。
+// SDK 공통 도구 actool.DefaultTools()(Read/Write/Edit/MultiEdit/LS/Glob/
+// Grep/Bash)는 의도적으로 제외합니다. 모든 Agent가 항상 가지므로 연결 선택이 없고 설명 대부분이 Prompt()에
+// 있어 Description()만 재정의하면 부분 적용으로 오해를 낳습니다. 시드/DB 행이 없으면 ToolResolve가
+// 그대로 통과시켜 기존 동작을 유지합니다. ARTEX 자체 도메인 도구만 테이블에 등록해 관리합니다.
 func builtinToolsByAgent() map[string][]actool.CoreTool {
 	ts := NewToolSet(nil, "")
 	return map[string][]actool.CoreTool{
 		"mainagent": ts.MainAgentTools(),
 		"planner":   ts.PlannerTools(),
 		"worker":    ts.WorkerTools(),
-		// goals（目标拆解器）默认绑 set_goals + set_constraints：靠它们把拆出的目标、
-		// 抽出的操作约束写进库。与 mainagent 共用同一受管工具，web 端可改描述/schema、按 agent 勾选。
+		// goals(목표 분해기)는 기본적으로 set_goals + set_constraints를 연결해 목표와 작업 제약을 저장합니다.
+		// mainagent와 같은 관리 도구를 공유하며 웹에서 설명/schema 수정 및 Agent별 선택이 가능합니다.
 		"goals": {ts.setGoals(), ts.setConstraints()},
-		// auto 默认绑漏洞上报 + 资产管理工具，其他域工具可在 UI 按需勾选。
-		// 新库由此 seed 写入；老库由 seedAutoDefaultBindings 迁移。
+		// auto는 기본적으로 취약점 보고 + 자산 관리 도구를 연결하고 다른 도메인 도구는 UI에서 선택할 수 있습니다.
+		// 새 DB는 이 시드로 초기화하고 기존 DB는 seedAutoDefaultBindings로 마이그레이션합니다.
 		"auto": {ts.addFinding(), ts.insertAssets(), ts.addCompanyScope(), ts.listAssets(), ts.listCompanies()},
-		// pentest（独立渗透 agent）默认绑：查资产 / 插资产 / 报漏洞 / 查漏洞 / 查企业。
-		// 新库由此 seed 写入；老库由 seedPentestDefaultBindings 迁移。
+		// pentest(독립 침투 Agent)는 기본적으로 자산 조회/삽입, 취약점 보고/조회, 기업 조회를 연결합니다.
+		// 새 DB는 이 시드로 초기화하고 기존 DB는 seedPentestDefaultBindings로 마이그레이션합니다.
 		"pentest": {ts.listAssets(), ts.insertAssets(), ts.addFinding(), ts.listFindings(), ts.listCompanies()},
 	}
 }
 
-// defaultUnbound：这些 system 工具会照常入目录（web 端可见、可手动按 agent 勾选），但
-// 默认【不绑任何 agent】——ToolResolve 对空绑定的工具对所有 agent 一律丢弃,须显式 opt-in。
-// 之所以仍留在某个 agent 的 base 工具集里(如 goal_met 在 PlannerTools):一是让 seed 能
-// 构造它拿到 desc/schema,二是用户手动绑回后运行时 base 里有它、ToolResolve 才留得住。
+// defaultUnbound의 system 도구도 목록에는 등록되어 웹에서 보이고 Agent별 수동 연결이 가능합니다.
+// 단, 기본 연결 Agent는 없으며 ToolResolve는 연결이 빈 도구를 모든 Agent에서 제외하므로 명시적 선택이 필요합니다.
+// 일부 Agent의 기본 도구 모음에 남겨두는 이유(예: PlannerTools의 goal_met)는 시드가 도구를 만들어
+// desc/schema를 얻고, 사용자가 수동 연결했을 때 런타임 기본 모음에 있어 ToolResolve가 유지할 수 있게 하기 위함입니다.
 //
-// goal_met：绕过逐个 prove_goal、直接从全局宣布【整个任务完成】,权重大且有误判风险,又与
-// 「prove_goal 标记最后一个目标 → 自动收官」重复,故默认不给任何 agent,需要时再手动绑。
+// goal_met는 개별 prove_goal을 건너뛰고 전체 작업 완료를 선언하므로 영향과 오판 위험이 크며
+// 마지막 목표 prove_goal 시 자동 종료하는 기능과 겹칩니다. 따라서 기본 연결하지 않고 필요할 때 수동 연결합니다.
 var defaultUnbound = map[string]bool{"goal_met": true}
 
-// BuiltinToolSeeds 把各 agent 的内置工具集去重合并成 seed 列表：同名工具（如 list_assets
-// 多个 agent 都有）合成一条，Agents 取并集；defaultUnbound 里的工具则强制绑定为空。
+// BuiltinToolSeeds는 각 Agent의 내장 도구를 중복 제거해 시드 목록으로 합칩니다. 여러 Agent에 있는
+// 동명 도구(list_assets 등)는 하나로 합치고 Agents는 합집합을 취하며 defaultUnbound 도구는 연결을 비웁니다.
 func BuiltinToolSeeds() []ToolSeed {
 	byAgent := builtinToolsByAgent()
 	order := []string{"mainagent", "goals", "planner", "worker", "auto", "pentest"}
@@ -87,7 +87,7 @@ func BuiltinToolSeeds() []ToolSeed {
 		a := m[k]
 		agents := a.agents
 		if defaultUnbound[k] {
-			agents = []string{} // 入目录、可手动绑，但默认不给任何 agent（存 [] 而非 null，与其它工具一致）
+			agents = []string{} // 목록에는 등록하고 수동 연결 가능하지만 기본 연결은 없음(다른 도구처럼 null 대신 [] 저장)
 		}
 		out = append(out, ToolSeed{
 			Key:    k,
@@ -102,7 +102,7 @@ func BuiltinToolSeeds() []ToolSeed {
 // ToolResolve, if set, post-processes an agent's fully-assembled tool list against
 // the DB tools table: it drops tools not bound to this agent (or globally disabled)
 // and wraps the rest so the model sees the DB-overridden description/schema and
-// 缺省入参 get injected. Tools with no matching DB row (MCP/skill/host tools like
+// 기본 입력값 get injected. Tools with no matching DB row (MCP/skill/host tools like
 // traffic) pass through untouched. nil = tools unchanged. Wired in server/assembly.go.
 var ToolResolve func(ctx context.Context, agentKey string, tools []actool.CoreTool) []actool.CoreTool
 
@@ -138,7 +138,7 @@ func (o *overriddenTool) Call(ctx context.Context, in json.RawMessage, tc *actoo
 
 // injectDefaults fills scalar parameter defaults declared in the (possibly edited)
 // schema into the input JSON whenever the model omitted the field or left it empty/
-// null. Structure (names/types/required) is untouched — only缺省值 are merged in.
+// null. Structure (names/types/required) is untouched — only 기본값 are merged in.
 func injectDefaults(in json.RawMessage, schema map[string]any) json.RawMessage {
 	defs := scalarDefaults(schema)
 	if len(defs) == 0 {
