@@ -40,6 +40,18 @@ func TestChatMentionParsing(t *testing.T) {
 	}
 }
 
+func TestChatMentionKoreanAndLegacyTokens(t *testing.T) {
+	refs, err := parseChatMentions("@[취약점#12 새 기록] @[漏洞#12 기존 기록] @[하위 도메인#34 a.example.com]")
+	if err != nil || len(refs) != 2 || refs[0].Kind != "finding" || refs[0].ID != 12 || refs[1].Kind != "subdomain" || refs[1].ID != 34 {
+		t.Fatalf("refs=%+v err=%v", refs, err)
+	}
+	for _, msg := range []string{"@[취약점#0]", "@[자산#999999999999999999999999]"} {
+		if _, err := parseChatMentions(msg); err == nil {
+			t.Fatalf("accepted %q", msg)
+		}
+	}
+}
+
 func TestChatMentionPagination(t *testing.T) {
 	s, fid := newRetestServer(t)
 	pg := s.m.pg
