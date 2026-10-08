@@ -1,37 +1,37 @@
 import { fileURLToPath } from "node:url";
 
-// 静态导出：`NEXT_EXPORT=1 next build` 产出纯静态目录到 web/out，可直接丢进
-// nginx web 根目录运行。开发(next dev)不设该变量，保留 /api 反代与热更新。
+// 정적 내보내기: `NEXT_EXPORT=1 next build`로 web/out에 정적 디렉터리를 생성하며
+// nginx 웹 루트에 바로 배치할 수 있습니다. next dev에서는 이 변수를 생략해 /api 프록시와 핫 리로드를 유지합니다.
 const isExport = process.env.NEXT_EXPORT === "1";
-// Vercel demo：整站走 mock，无后端，无需 /api 反代。
+// Vercel 데모: 전체 사이트가 mock을 사용하므로 백엔드와 /api 프록시가 필요하지 않습니다.
 const isMock = process.env.NEXT_PUBLIC_MOCK === "1";
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  // 避免父目录的 lockfile 影响根目录推断及资源路径生成。
+  // 상위 디렉터리 lockfile이 루트 추론 및 리소스 경로 생성에 영향을 주지 않도록 합니다.
   turbopack: { root: fileURLToPath(new URL(".", import.meta.url)) },
   reactCompiler: true,
-  // 允许从局域网 IP 访问 dev 资源（HMR），按需增删。
-  // dev 阶段放开任意 IPv4 来源访问 /_next/* 与 HMR（局域网 IP 变动也不受影响）。
-  // 注意：Next 出于安全禁止裸 "*"，需用分段通配；"*.*.*.*" 匹配任意 IPv4。
+  // 로컬 네트워크 IP에서 개발 리소스(HMR)에 접근하도록 허용합니다. 필요시 수정하세요.
+  // 개발 중 모든 IPv4에서 /_next/*와 HMR 접근 허용(로컬 네트워크 IP가 바뀌어도 동작).
+  // Next는 보안상 단독 "*"를 금지하므로 구간별 와일드카드 "*.*.*.*"로 IPv4를 매칭합니다.
   allowedDevOrigins: ["*.*.*.*"],
   compiler: {
     removeConsole: process.env.NODE_ENV === "production",
   },
   ...(isExport
     ? {
-        // 纯静态导出：无 Node 运行时；图片不经优化；每个路由产出 <route>/index.html。
+        // 정적 내보내기: Node 런타임과 이미지 최적화 없이 라우트마다 <route>/index.html 생성.
         output: "export",
         images: { unoptimized: true },
         trailingSlash: true,
       }
     : isMock
       ? {
-          // Vercel mock demo：无后端，不需要 /api 反代。
+          // Vercel mock 데모에는 백엔드와 /api 프록시가 필요하지 않습니다.
           images: { unoptimized: true },
         }
       : {
-          // 开发：把 /api/* 反代到 Go 后端（默认 :8787，可用 AUTOPENTEST_API 覆盖）。
+          // 개발: /api/*를 Go 백엔드로 프록시(기본 :8787, AUTOPENTEST_API로 변경 가능).
           async rewrites() {
             const backend = process.env.AUTOPENTEST_API ?? "http://localhost:8787";
             return [{ source: "/api/:path*", destination: `${backend}/api/:path*` }];
