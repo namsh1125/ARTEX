@@ -196,11 +196,11 @@ func TestFindingAssetScopeFilter(t *testing.T) {
 		scope string
 		want  int
 	}{
-		{"전체 하위 트리", assetKey(rootID), 1},      // 루트 아래 하위 도메인 항목 하나만 있음
-		{"말단 노드", assetKey(subID), 1},       // 하위 도메인 자체
-		{"다른 트리", assetKey(otherID), 1},     // 서로 섞이지 않음
+		{"전체 하위 트리", assetKey(rootID), 1},  // 루트 아래 하위 도메인 항목 하나만 있음
+		{"말단 노드", assetKey(subID), 1},      // 하위 도메인 자체
+		{"다른 트리", assetKey(otherID), 1},    // 서로 섞이지 않음
 		{"미연결", FindingUnassignedAsset, 2}, // asset_ids가 빈 항목 + 삭제 자산 참조 항목
-		{"없는 노드", "a:999000222", 0},       // 현재 필터에 노드가 없으면 필터 해제 대신 빈 결과
+		{"없는 노드", "a:999000222", 0},        // 현재 필터에 노드가 없으면 필터 해제 대신 빈 결과
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
