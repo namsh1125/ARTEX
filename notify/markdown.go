@@ -5,37 +5,37 @@ import (
 	"strings"
 )
 
-// 本文件是「Markdown 系」渠道（钉钉、企业微信）共用的消息渲染。
-// 飞书用卡片 JSON、Telegram 用 HTML、邮件用 HTML，各自在适配器里渲染。
+// DingTalk과 WeCom 등 Markdown 채널이 공유하는 메시지 렌더링입니다.
+// Feishu는 카드 JSON, Telegram과 메일은 HTML을 각 어댑터에서 렌더링합니다.
 
-// maxAssetsShown 是消息里最多列出几个资产。一个漏洞可能锚定几十个资产，
-// 全列会挤爆消息且没有信息价值——第 4 个之后的域名没人会在 IM 里看。
+// maxAssetsShown은 메시지에 나열할 최대 자산 수입니다. 취약점 하나에 수십 자산이 있으면
+// 전체 표시가 메시지를 채우고 정보 가치도 낮아 제한합니다.
 const maxAssetsShown = 3
 
-// maxSummaryRunes 是摘要被压缩到多少字符。IM 消息是「提示去看详情」，
-// 不是报告本体，完整内容在平台里。
+// maxSummaryRunes는 요약의 최대 문자 수입니다. IM은 상세 확인을 유도하는 알림이며
+// 전체 보고서는 플랫폼에서 확인합니다.
 const maxSummaryRunes = 120
 
-// markdownReservedBytes 预留给消息头部（汇总行 + 级别分布 + 可能的截断提示）
-// 与尾部（平台链接）。按整条打包时把这部分从预算里扣掉，保证头尾不会被截掉——
-// 头尾一旦被截，读者连「这是哪一批、还有多少条没显示」都看不出来。
+// markdownReservedBytes는 머리말(요약 행+등급 분포+잘림 안내)과
+// 꼬리말(플랫폼 링크)에 예약할 바이트 수입니다. 항목을 채울 때 예산에서 빼서
+// 묶음의 정체와 생략된 수를 알려 주는 머리말/꼬리말이 잘리지 않게 합니다.
 const markdownReservedBytes = 320
 
-// markdownEscape 转义 markdown 元字符。
+// markdownEscape는 Markdown 특수 문자를 이스케이프합니다.
 //
-// 为什么必须做：漏洞标题、摘要、类型、资产展示名全都来自**不可信来源**——
-// 标题与摘要出自模型输出（模型读的是被测目标的响应），资产的 url 则是扫描
-// 得到的完整 URL（含目标可控的查询串）。不转义的话，一条标题为
+// 취약점 제목, 요약, 유형, 자산 이름은 모두 신뢰할 수 없는 출처입니다.
+// 모델 출력은 테스트 대상 응답을 바탕으로 하고 자산 URL의 쿼리는 대상이 제어할 수 있습니다.
+// 이스케이프하지 않으면 다음 제목이
 //
-//	登录口 SQL 注入\n[紧急：点此验证账号](http://attacker.tld)
+//	로그인 SQL 인젝션\n[긴급: 계정 확인](http://attacker.tld)
 //
-// 的漏洞会在安全工程师的钉钉/飞书里渲染成**可点击的外链**；而
-// `![](http://attacker.tld/beacon)` 会在渲染时被客户端拉取，等于通报了
-// 「这条漏洞已经被看过」并泄露阅读者 IP。就算是无恶意的内容，注入的粗体或
-// 引用块也能把下面的严重漏洞挤出折叠线。
+// DingTalk/Feishu에서 클릭 가능한 외부 링크가 됩니다.
+// ![](http://attacker.tld/beacon)은 렌더링 시 클라이언트가 요청해
+// 취약점 열람 여부와 독자의 IP를 노출합니다. 악의가 없어도 굵은 글씨나
+// 인용 블록 삽입이 중요한 취약점을 접힘 영역 밖으로 밀어낼 수 있습니다.
 //
-// 转义集合覆盖标题/链接/强调/列表/引用/删除线这几类会改变结构或产生可点击
-// 元素的字符。`\` 必须最先处理，否则会把后面补上的反斜杠再次转义。
+// 제목/링크/강조/목록/인용/취소선 등 구조나 클릭 요소를 만드는 문자를 처리합니다.
+// 역슬래시는 나중에 추가한 역슬래시를 다시 처리하지 않도록 가장 먼저 이스케이프합니다.
 func markdownEscape(s string) string {
 	replacer := strings.NewReplacer(
 		`\`, `\\`,
@@ -55,40 +55,40 @@ func markdownEscape(s string) string {
 	return replacer.Replace(s)
 }
 
-// markdownText 把不可信文本压成单行并转义，供 markdown 正文使用。
-// 单行化是转义之外的另一半：换行本身就能伪造出新的列表项或引用块，
-// 而转义字符挡不住它。
+// markdownText는 신뢰할 수 없는 텍스트를 한 줄로 만들고 이스케이프합니다.
+// 줄바꿈 자체로 목록/인용을 위조할 수 있으므로 문자 이스케이프 외에
+// 한 줄로 만드는 처리도 필요합니다.
 func markdownText(s string, maxRunes int) string {
 	return markdownEscape(OneLine(s, maxRunes))
 }
 
-// markdownTitle 返回消息标题（IM 平台的标题栏/卡片标题），内容是**未转义的原文**。
+// markdownTitle은 IM 제목/카드 제목의 이스케이프하지 않은 원문을 반환합니다.
 //
-// 这里刻意不做转义：这个标题被四种语境的渲染器共用——markdown 正文、Telegram 的
-// HTML、飞书卡片的 plain_text、以及通用 Webhook 的 JSON 与邮件主题。每个语境的
-// 转义规则都不同（markdown 转义塞进 HTML 会留下可见的反斜杠，塞进 JSON 会污染
-// 数据），所以转义必须由各自的输出端负责，见 writeItem / feishuItemLines /
-// telegramEscape。曾经在共享函数里加过 markdown 转义，结果 Telegram 消息里
-// 出现了 `\(1\)` 这种可见的反斜杠。
+// Markdown 본문, Telegram HTML, Feishu plain_text,
+// Webhook JSON 및 메일 제목이 공유하므로 여기서는 이스케이프하지 않습니다.
+// 맥락마다 규칙이 달라 Markdown 이스케이프를 HTML/JSON에 넣으면
+// 보이는 역슬래시나 오염된 데이터가 됩니다. 각 출력단 writeItem / feishuItemLines /
+// telegramEscape에서 처리해야 합니다. 과거 공통 함수에서 처리했다가 Telegram에
+// 역슬래시가 그대로 표시된 적이 있습니다.
 func markdownTitle(m Message) string {
 	if m.Batch {
-		return fmt.Sprintf("漏洞汇总 · 共 %d 条", len(m.Items))
+		return fmt.Sprintf("취약점 요약 · 총 %d개", len(m.Items))
 	}
 	if len(m.Items) == 0 {
-		return "漏洞通知"
+		return "취약점 알림"
 	}
 	it := m.Items[0]
 	return fmt.Sprintf("[%s] %s", SeverityLabel(it.Severity), OneLine(it.Title(), 0))
 }
 
-// markdownBody 渲染消息正文，返回正文与**实际写入的条目数**。
+// markdownBody는 본문과 실제 포함한 항목 수를 반환합니다.
 //
-// 返回值 kept 是这次投递真正送达的条目数，调用方据此只把前 kept 条标记为
-// 已送达——被渠道长度上限挡在外面的条目必须留待下一批，而不是跟着一起被
-// 标记成功。这正是「静默丢失」的来源：消息被截断了，但投递记录显示全部送达，
-// 没有任何地方能看出后半截从未发出。
+// kept는 실제 전달된 수이며 호출자는 앞 kept개만 완료 처리해야 합니다.
+// 길이 한도로 제외된 항목은 성공 처리하지 않고 다음 묶음으로 남깁니다.
+// 메시지는 잘렸는데 이력은 전부 성공이면 어디에서도
+// 뒤 항목의 미전송을 알 수 없는 조용한 누락이 발생합니다.
 //
-// maxBytes<=0 表示不限制。
+// maxBytes<=0은 무제한입니다.
 func markdownBody(m Message, maxBytes int) (string, int) {
 	if !m.Batch {
 		if len(m.Items) == 0 {
@@ -96,14 +96,14 @@ func markdownBody(m Message, maxBytes int) (string, int) {
 		}
 		var b strings.Builder
 		writeItem(&b, m.Items[0], "", true)
-		// 单条消息即使超长也照发（由最终截断兜底）：一条漏洞的部分信息
-		// 也好过一条都不发。
+		// 단일 항목이 길어도 최종 잘림으로 전송합니다. 일부 정보라도
+		// 보내는 편이 아무것도 보내지 않는 것보다 낫습니다.
 		return TruncateBytes(b.String(), maxBytes), 1
 	}
 
 	footer := ""
 	if m.HomeURL != "" {
-		footer = fmt.Sprintf("\n[在平台中查看全部](%s)\n", m.HomeURL)
+		footer = fmt.Sprintf("\n[플랫폼에서 전체 보기](%s)\n", m.HomeURL)
 	}
 	kept := packItemCount(m.Items, maxBytes, markdownReservedBytes, footer, byteSize, func(it Item, idx int) string {
 		var b strings.Builder
@@ -121,24 +121,24 @@ func markdownBody(m Message, maxBytes int) (string, int) {
 	return TruncateBytes(b.String(), maxBytes), kept
 }
 
-// markdownBatchIntro 渲染汇总消息的开头：时间窗、条数与级别分布。
-// 有了这些，收到汇总的人不用点进平台就能判断这批需不需要立刻处理。
+// markdownBatchIntro는 시간 구간, 개수, 등급 분포를 렌더링합니다.
+// 수신자가 플랫폼에 들어가지 않아도 즉시 처리할 필요가 있는지 판단할 수 있습니다.
 //
-// items 是**实际装下**的条目，total 是本批应有的总数。两者不同时必须明说
-// 「还有多少条在下一条消息里」——否则读者会以为消息头写的那个数字就是全部，
-// 而后面那些从未发出的条目在界面上完全不存在。
+// items는 실제 포함한 항목, total은 전체 묶음 수입니다. 다르면 다음 메시지에 남은 수를
+// 명시해야 독자가 머리말 숫자를 전체로 오해하거나
+// 아직 전송되지 않은 항목을 놓치지 않습니다.
 func markdownBatchIntro(m Message, items []Item, total int) string {
 	var b strings.Builder
 	if m.WindowMinutes > 0 {
-		fmt.Fprintf(&b, "**近 %d 分钟新增 %d 个漏洞**", m.WindowMinutes, total)
+		fmt.Fprintf(&b, "**최근 %d분 새 취약점 %d개**", m.WindowMinutes, total)
 	} else {
-		fmt.Fprintf(&b, "**新增 %d 个漏洞**", total)
+		fmt.Fprintf(&b, "**새 취약점 %d개**", total)
 	}
 	if extra := total - len(items); extra > 0 {
-		fmt.Fprintf(&b, "（本条显示前 %d 条，其余 %d 条将在下一条消息继续）", len(items), extra)
+		fmt.Fprintf(&b, "(이 메시지에는 앞 %d개 표시, 나머지 %d개는 다음 메시지에 계속)", len(items), extra)
 	}
-	// 按级别给出分布，让读者一眼看到有没有严重项。只统计**本条实际包含**的
-	// 条目，保证「严重 3」和下面能数出来的条目一致。
+	// 이 메시지에 실제 포함된 항목만 등급별로 집계해
+	// 치명적 3개라는 표시와 아래에서 셀 수 있는 수가 일치하게 합니다.
 	counts := map[string]int{}
 	for _, it := range items {
 		counts[it.Severity]++
@@ -156,18 +156,18 @@ func markdownBatchIntro(m Message, items []Item, total int) string {
 	return b.String()
 }
 
-// writeItem 渲染单个漏洞条目。
+// writeItem은 취약점 항목 하나를 렌더링합니다.
 //
-// prefix 用于汇总列表的序号；single=true 时渲染完整版（含摘要与回链），
-// 汇总列表里只渲染一行摘要——否则 50 条汇总会变成一篇长文档。
+// prefix는 요약 목록 번호, single=true는 요약/상세 링크를 포함한 전체 형식입니다.
+// 요약 목록은 50개가 긴 문서가 되지 않도록 한 줄씩만 표시합니다.
 //
-// 所有来自外部的内容（标题/类型/资产/摘要）都过 markdownText：
-// 单行化 + 转义。回链是管理员配置的 public_base_url 拼出来的，不是不可信内容，
-// 且必须是可点的链接，所以原样输出。
+// 외부 내용(제목/유형/자산/요약)은 모두 markdownText로
+// 한 줄 처리 및 이스케이프합니다. 상세 링크는 관리자 public_base_url로 만들고
+// 클릭 가능해야 하므로 그대로 출력합니다.
 func writeItem(b *strings.Builder, it Item, prefix string, single bool) {
 	line := fmt.Sprintf("%s**%s · %s**", prefix, SeverityLabel(it.Severity), markdownText(it.Title(), 0))
 	if !single {
-		// 汇总模式：单行呈现，资产与摘要压缩后跟在后面。
+		// 요약 모드: 한 줄로 표시하며 압축한 자산과 요약을 뒤에 붙입니다.
 		var extras []string
 		if a := assetLine(it.Assets, maxAssetsShown); a != "" {
 			extras = append(extras, markdownText(a, 0))
@@ -183,21 +183,21 @@ func writeItem(b *strings.Builder, it Item, prefix string, single bool) {
 	}
 	b.WriteString(line + "\n")
 	if it.IsStatusChange() {
-		fmt.Fprintf(b, "**状态变更**：%s → %s\n",
+		fmt.Fprintf(b, "**상태 변경**: %s → %s\n",
 			markdownText(StatusLabel(it.FromStatus), 0), markdownText(StatusLabel(it.ToStatus), 0))
 	}
 	if it.VulnClass != "" && it.VulnClass != it.Title() {
-		fmt.Fprintf(b, "**类型**：%s\n", markdownText(it.VulnClass, 0))
+		fmt.Fprintf(b, "**유형**: %s\n", markdownText(it.VulnClass, 0))
 	}
 	if a := assetLine(it.Assets, maxAssetsShown); a != "" {
-		fmt.Fprintf(b, "**资产**：%s\n", markdownText(a, 0))
+		fmt.Fprintf(b, "**자산**: %s\n", markdownText(a, 0))
 	}
 	if it.Summary != "" {
 		if s := markdownText(it.Summary, maxSummaryRunes); s != "" {
-			fmt.Fprintf(b, "**摘要**：%s\n", s)
+			fmt.Fprintf(b, "**요약**: %s\n", s)
 		}
 	}
 	if it.DetailURL != "" {
-		fmt.Fprintf(b, "[查看详情](%s)\n", it.DetailURL)
+		fmt.Fprintf(b, "[상세 보기](%s)\n", it.DetailURL)
 	}
 }
