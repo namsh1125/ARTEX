@@ -249,7 +249,7 @@ export default function TrafficPage() {
     [hosts, hostCountSortDirection],
   );
 
-  // "清空" for the unfiltered purge, "删除" for the host-scoped ones — the dialog's
+  // 필터 없는 전체 정리는 비우기, 호스트별 정리는 삭제로 표시합니다. 대화상자의
   // title and its confirm button both follow from which is in play.
   const deleteVerb = deleteMode === "all" ? "비우기" : "삭제";
   const deleteTitle = deleteMode
