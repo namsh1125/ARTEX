@@ -13,18 +13,18 @@ import (
 	"github.com/Autumn-27/artex/mcphttp"
 )
 
-// 资产同步（ScopeSentry 数据源）。
+// 자산 동기화(ScopeSentry 데이터 소스).
 //
-// ScopeSentry 是一个 ASM 资产测绘平台，通过其 MCP 接口按【项目】/【任务】两个维度
-// 拉取子域名、Web 应用、服务等资产，映射为 ARTEX 的公司 + 资产模型。数据源本身是
-// 一个名为 "ScopeSentry" 的 http 传输 MCP 行（url + X-API-Key 头保存在 mcp_servers）。
+// ScopeSentry는 ASM 자산 탐색 플랫폼으로 MCP 인터페이스에서 프로젝트/작업별로
+// 하위 도메인, 웹 앱, 서비스 등을 가져와 ARTEX의 회사 + 자산 모델로 매핑한다. 데이터 소스는
+// "ScopeSentry"라는 HTTP 전송 MCP 행이며 URL과 X-API-Key 헤더는 mcp_servers에 저장한다.
 //
-// 与 agent 工具层不同，这里用 mcphttp.Client.Call 直接调用 MCP 工具、拿原始 JSON，
-// 不触发 AskUser 权限弹窗（后台批量同步）。
+// 에이전트 도구 계층과 달리 mcphttp.Client.Call로 MCP 도구를 직접 호출해 원시 JSON을 받으며
+// AskUser 권한 팝업을 띄우지 않는다(백그라운드 일괄 동기화).
 
 const (
 	scopeSentryMCPName = "ScopeSentry"
-	syncMaxPerType     = 5000 // 单目标单类型的入库保护上限
+	syncMaxPerType     = 5000 // 대상별·유형별 DB 저장 보호 한도
 	syncDefaultPage    = 100
 )
 
@@ -50,10 +50,10 @@ func (s *Server) scopeSentryClient(ctx context.Context) (*mcphttp.Client, error)
 		return nil, err
 	}
 	if m == nil {
-		return nil, fmt.Errorf("数据源 %s 不存在，请先创建", scopeSentryMCPName)
+		return nil, fmt.Errorf("데이터 소스 %s이(가) 없습니다. 먼저 생성하세요", scopeSentryMCPName)
 	}
 	if m.URL == "" {
-		return nil, fmt.Errorf("数据源 %s 未配置 URL，请先配置", scopeSentryMCPName)
+		return nil, fmt.Errorf("데이터 소스 %s에 URL이 없습니다. 먼저 설정하세요", scopeSentryMCPName)
 	}
 	return mcphttp.New(ctx, m.Name, m.URL, jsonStrMap(m.Env), m.Insecure)
 }
@@ -185,7 +185,7 @@ func (s *Server) syncSSProjects(w http.ResponseWriter, r *http.Request) {
 	}
 	text, err := cl.Call(ctx, "list_projects_data", args)
 	if err != nil {
-		writeErr(w, 502, "list_projects_data 失败: "+err.Error())
+		writeErr(w, 502, "list_projects_data 실패: "+err.Error())
 		return
 	}
 	// {result:{All:[{id,name,logo,AssetCount,tag}], <tag>:[...]}, tag:{...}}
@@ -194,7 +194,7 @@ func (s *Server) syncSSProjects(w http.ResponseWriter, r *http.Request) {
 		Tag    map[string]int             `json:"tag"`
 	}
 	if err := json.Unmarshal([]byte(text), &env); err != nil {
-		writeErr(w, 502, "解析项目列表失败: "+err.Error())
+		writeErr(w, 502, "프로젝트 목록 해석 실패: "+err.Error())
 		return
 	}
 	projects := json.RawMessage("[]")
@@ -228,14 +228,14 @@ func (s *Server) syncSSTasks(w http.ResponseWriter, r *http.Request) {
 	}
 	text, err := cl.Call(ctx, "list_tasks", args)
 	if err != nil {
-		writeErr(w, 502, "list_tasks 失败: "+err.Error())
+		writeErr(w, 502, "list_tasks 실패: "+err.Error())
 		return
 	}
 	var env struct {
 		List json.RawMessage `json:"list"`
 	}
 	if err := json.Unmarshal([]byte(text), &env); err != nil {
-		writeErr(w, 502, "解析任务列表失败: "+err.Error())
+		writeErr(w, 502, "작업 목록 해석 실패: "+err.Error())
 		return
 	}
 	tasks := env.List
@@ -271,11 +271,11 @@ func (s *Server) syncSSRun(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if req.Dimension != "project" && req.Dimension != "task" {
-		writeErr(w, 400, "dimension 必须是 project 或 task")
+		writeErr(w, 400, "dimension은 project 또는 task여야 합니다")
 		return
 	}
 	if len(req.Targets) == 0 {
-		writeErr(w, 400, "targets 不能为空")
+		writeErr(w, 400, "targets는 비워 둘 수 없습니다")
 		return
 	}
 	if len(req.AssetTypes) == 0 {
@@ -308,11 +308,11 @@ func (s *Server) syncSSRun(w http.ResponseWriter, r *http.Request) {
 			if req.CreateCompany {
 				name, roots, perr := s.ssProjectMeta(ctx, cl, target)
 				if perr != nil {
-					warnings = append(warnings, fmt.Sprintf("项目 %s 详情获取失败: %v", target, perr))
+					warnings = append(warnings, fmt.Sprintf("프로젝트 %s 상세 정보 가져오기 실패: %v", target, perr))
 				} else if name != "" {
 					cid, cerr := cs.UpsertByName(name)
 					if cerr != nil {
-						warnings = append(warnings, fmt.Sprintf("公司 %s 创建失败: %v", name, cerr))
+						warnings = append(warnings, fmt.Sprintf("회사 %s 생성 실패: %v", name, cerr))
 					} else {
 						companies = append(companies, name)
 						madeCompany = true
@@ -329,16 +329,16 @@ func (s *Server) syncSSRun(w http.ResponseWriter, r *http.Request) {
 		for _, at := range req.AssetTypes {
 			ssType, ok := map[string]string{"subdomain": "subdomain", "service": "asset", "app": "app"}[at]
 			if !ok {
-				warnings = append(warnings, "未知资产类型，已跳过: "+at)
+				warnings = append(warnings, "알 수 없는 자산 유형을 건너뛰었습니다: "+at)
 				continue
 			}
 			items, truncated, ferr := s.ssPageAll(ctx, cl, ssType, filter, pageSize)
 			if ferr != nil {
-				errs = append(errs, fmt.Sprintf("%s(%s) 拉取失败: %v", at, target, ferr))
+				errs = append(errs, fmt.Sprintf("%s(%s) 가져오기 실패: %v", at, target, ferr))
 				continue
 			}
 			if truncated {
-				warnings = append(warnings, fmt.Sprintf("%s(%s) 达到 %d 条上限，已截断", at, target, syncMaxPerType))
+				warnings = append(warnings, fmt.Sprintf("%s(%s)이(가) %d개 한도에 도달하여 잘렸습니다", at, target, syncMaxPerType))
 			}
 			for _, raw := range items {
 				if e := s.ssIngest(as, at, raw, synced); e != "" {
@@ -431,7 +431,7 @@ func (s *Server) ssIngest(as *db.AssetStore, assetType string, raw json.RawMessa
 			IP    []string `json:"ip"`
 		}
 		if err := json.Unmarshal(raw, &it); err != nil {
-			return "subdomain 解析失败: " + err.Error()
+			return "subdomain 해석 실패: " + err.Error()
 		}
 		if it.Host == "" {
 			return ""
@@ -455,7 +455,7 @@ func (s *Server) ssIngest(as *db.AssetStore, assetType string, raw json.RawMessa
 			ICP         string `json:"icp"`
 		}
 		if err := json.Unmarshal(raw, &it); err != nil {
-			return "app 解析失败: " + err.Error()
+			return "app 해석 실패: " + err.Error()
 		}
 		if it.Name == "" {
 			return ""
@@ -477,7 +477,7 @@ func (s *Server) ssIngest(as *db.AssetStore, assetType string, raw json.RawMessa
 			Icon     string   `json:"icon"`
 		}
 		if err := json.Unmarshal(raw, &it); err != nil {
-			return "service 解析失败: " + err.Error()
+			return "service 해석 실패: " + err.Error()
 		}
 		if it.Service == "http" || it.URL != "" {
 			if it.URL == "" {
