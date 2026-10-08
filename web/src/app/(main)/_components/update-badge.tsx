@@ -9,14 +9,14 @@ import { ArrowUpCircleIcon } from "lucide-react";
 import { api } from "@/lib/api";
 
 /**
- * 顶栏的"有新版本"提示：整页加载时查一次，有更新就在版本号旁边亮出来，
- * 点击直达系统配置页的「版本与更新」卡片。
+ * 상단 새 버전 알림: 전체 페이지 로드 시 한 번 확인하고 업데이트가 있으면 버전 옆에 표시합니다.
+ * 클릭하면 시스템 설정의 버전 및 업데이트 카드로 이동합니다.
  *
- * 后端对 GitHub 的查询结果有 30 分钟缓存，所以这里每次挂载都查一次是安全的
- * ——未认证的 GitHub API 只有 60 次/小时/IP，没有那层缓存的话，多开几个标签页
- * 就会把配额耗光，之后真想更新反而查不动。
+ * 백엔드가 GitHub 조회 결과를 30분간 캐시하므로 마운트할 때마다 조회해도 안전합니다.
+ * 미인증 GitHub API는 IP당 시간당 60회로 제한되므로 캐시가 없으면 탭 몇 개만으로
+ * 할당량을 소진하여 실제 업데이트 시 조회할 수 없게 됩니다.
  *
- * 查询失败一律静默：顶栏不是报错的地方，用户进设置页点「检查更新」会看到原因。
+ * 실패는 조용히 무시합니다. 오류 원인은 설정의 업데이트 확인에서 볼 수 있습니다.
  */
 export function UpdateBadge() {
   const [latest, setLatest] = React.useState("");
@@ -26,11 +26,11 @@ export function UpdateBadge() {
     api
       .checkUpdate()
       .then((r) => {
-        // has_update 已经包含了"版本号可比较"的判断，开发构建不会亮这个提示。
+        // has_update는 버전 비교 가능 여부도 포함하므로 개발 빌드에는 알림이 표시되지 않습니다.
         if (alive && r.has_update && r.latest) setLatest(r.latest.replace(/^v(?=\d)/, ""));
       })
       .catch(() => {
-        // 静默：没网 / GitHub 限流都不该在顶栏弹错误。
+        // 네트워크 단절이나 GitHub 요청 제한 오류를 상단에 표시하지 않습니다.
       });
     return () => {
       alive = false;
@@ -45,7 +45,7 @@ export function UpdateBadge() {
       title={`새 버전 발견 ${latest}, 클릭하여 업데이트`}
       className="inline-flex items-center gap-1.5 rounded-full bg-primary px-2.5 py-1 font-medium text-primary-foreground text-xs transition-opacity hover:opacity-90"
     >
-      {/* 呼吸点：顶栏元素很多，纯文字容易被忽略，动效让它一眼可见。 */}
+      {/* 상단 요소가 많아 텍스트만으로 놓치기 쉬우므로 점의 움직임으로 알립니다. */}
       <span className="relative flex size-1.5">
         <span className="absolute inline-flex size-full animate-ping rounded-full bg-primary-foreground opacity-75" />
         <span className="relative inline-flex size-1.5 rounded-full bg-primary-foreground" />
