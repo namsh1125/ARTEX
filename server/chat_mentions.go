@@ -17,8 +17,11 @@ const maxChatMentions = 10
 
 // The visible token survives drafts, uploads, retries and conversation history.
 // Labels are only for display: the server trusts only the type and numeric ID.
-var chatMentionPattern = regexp.MustCompile(`@\[(漏洞|资产|企业|接口|IP|应用|域名|子域名|服务)#([0-9]+)(?: [^\]\r\n]*)?\]`)
+var chatMentionPattern = regexp.MustCompile(`@\[(취약점|자산|기업|인터페이스|애플리케이션|도메인|하위 도메인|서비스|漏洞|资产|企业|接口|IP|应用|域名|子域名|服务)#([0-9]+)(?: [^\]\r\n]*)?\]`)
 var chatMentionKinds = map[string]string{
+	"취약점": "finding", "자산": "asset", "기업": "company", "인터페이스": "endpoint",
+	"애플리케이션": "app", "도메인": "root_domain", "하위 도메인": "subdomain", "서비스": "service",
+	// 기존 대화와 저장된 초안의 중국어 토큰도 계속 지원한다.
 	"漏洞": "finding", "资产": "asset", "企业": "company", "接口": "endpoint",
 	"IP": "ip", "应用": "app", "域名": "root_domain", "子域名": "subdomain", "服务": "service",
 }
