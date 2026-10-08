@@ -2,7 +2,7 @@
 """
 spider_mpa.py <BASE_URL> <OUTDIR> [--cookie "k=v; k2=v2"] [--max 200] [--depth 4]
 
-参考模板 — 非通用成品。执行前须按目标调整 --exclude、cookie、depth/max 等同域策略。
+참고 템플릿이며 범용 완제품이 아닙니다. 실행 전 대상에 맞게 --exclude, cookie, depth/max 등 동일 도메인 정책을 조정하세요.
 
 Fallback for NON-SPA targets (traditional server-rendered MPAs: Django/Rails/PHP/
 JSP, classic admin panels). When there is no JS endpoint bundle, the API surface
