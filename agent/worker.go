@@ -258,14 +258,14 @@ func workerTrafficBlock(recording bool) string {
 // pentest agent's prompt — intermediate artifacts must land in the shared work
 // dir, never /tmp. Guaranteed present regardless of how the DB body is edited.
 func artifactSpec(dir string) string {
-	return "\n\n**中间产物输出规约**：脚本、payload、抓到的响应体、临时数据等一切中间产物，**一律写到本任务工作目录 " + dir + "**（相对路径即写在这里，也可用该绝对路径）——**不要写 /tmp、不要用其它绝对路径**。"
+	return "\n\n**중간 산출물 출력 규칙**: 스크립트, payload, 캡처한 응답 본문, 임시 데이터 등 모든 중간 산출물은 **이 작업의 디렉터리 " + dir + "에 저장하세요**(상대 경로도 이곳을 가리키며 이 절대 경로를 사용해도 됩니다). **/tmp나 다른 절대 경로에 쓰지 마세요**."
 }
 
 // workerArtifactSpec is the worker's 段 [C]: its per-intent run dir is pre-created
 // by the engine (ensureRunDir), so it just writes relative paths there — no manual
 // mkdir, no cross-worker name collisions.
 func workerArtifactSpec(runDir string) string {
-	return "\n\n**中间产物输出规约**：脚本、payload、抓到的响应体、临时数据等一切中间产物，**一律写到本次意图的专属工作目录 " + runDir + "**（已自动建好，直接用相对路径写在这里即可，无需再手动建目录）——**不要写 /tmp、不要用其它绝对路径**。"
+	return "\n\n**중간 산출물 출력 규칙**: 스크립트, payload, 캡처한 응답 본문, 임시 데이터 등 모든 중간 산출물은 **이번 의도 전용 작업 디렉터리 " + runDir + "에 저장하세요**(자동 생성되어 있으므로 상대 경로로 바로 저장하면 되며 디렉터리를 따로 만들 필요가 없습니다). **/tmp나 다른 절대 경로에 쓰지 마세요**."
 }
 
 // ensureRunDir builds and creates an agent's working directory under base:
