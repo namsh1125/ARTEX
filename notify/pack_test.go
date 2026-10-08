@@ -6,86 +6,86 @@ import (
 	"unicode/utf8"
 )
 
-// 本文件覆盖「按整条打包」这个修复：汇总消息超出渠道长度上限时，必须**按整条**
-// 截断并把没装下的条目数如实报出来，让调用方只标记真正送达的那些。
+// 채널 길이 한도를 넘는 요약을 항목 단위로 묶는 처리를 검증합니다.
+// 실제 포함하지 못한 수를 알려 호출자가 전달된 항목만 완료 처리해야 합니다.
 //
-// 之前的做法是渲染完整篇再截断、然后整批标记已送达：消息后半截凭空消失，
-// 而投递历史显示全部成功——漏洞就这么没了，且没有任何地方能发现。
+// 전체 렌더링 후 잘라서 전부 완료 처리하면 뒤 항목이 사라져도 이력은 성공으로 남아
+// 취약점 알림 누락을 어디에서도 확인할 수 없습니다.
 
 func TestMarkdownBodyPacksWholeItemsWithinByteLimit(t *testing.T) {
-	// 200 条中文汇总，必然远超企微 4096 字节。
+	// 한국어 항목 200개는 WeCom 4096바이트를 충분히 초과합니다.
 	m := batchMsg(200)
 	body, kept := markdownBody(m, weComMarkdownLimit)
 
 	if len(body) > weComMarkdownLimit {
-		t.Fatalf("正文 %d 字节超上限 %d", len(body), weComMarkdownLimit)
+		t.Fatalf("본문 %d바이트가 한도 %d 초과", len(body), weComMarkdownLimit)
 	}
 	if !utf8.ValidString(body) {
-		t.Fatal("正文不是合法 UTF-8")
+		t.Fatal("본문이 유효한 UTF-8이 아닙니다")
 	}
 	if kept <= 0 || kept >= len(m.Items) {
-		t.Fatalf("应只装下一部分（0 < kept < %d），得到 %d", len(m.Items), kept)
+		t.Fatalf("일부만 포함해야 함(0 < kept < %d), 실제 %d", len(m.Items), kept)
 	}
-	// 头部必须如实说明本条只包含多少条、其余有多少条——否则读者会把头部
-	// 那个数字当成全部。
-	if !strings.Contains(body, "其余") || !strings.Contains(body, "下一条消息继续") {
-		t.Fatalf("头部应说明还有多少条未包含在本条里:\n%s", body[:minInt(400, len(body))])
+	// 머리말에서 이번 포함 수와 남은 수를 정확히 알려
+	// 독자가 표시된 숫자를 전체로 오해하지 않게 합니다.
+	if !strings.Contains(body, "나머지") || !strings.Contains(body, "다음 메시지에 계속") {
+		t.Fatalf("머리말에 미포함 항목 수를 안내해야 합니다:\n%s", body[:minInt(400, len(body))])
 	}
-	// 只应包含前 kept 条。
+	// 앞 kept개만 포함해야 합니다.
 	for i := 0; i < kept; i++ {
-		if !strings.Contains(body, "漏洞"+itoa(i+1)) {
-			t.Fatalf("第 %d 条应在本条消息里:\n%s", i+1, body)
+		if !strings.Contains(body, "취약점"+itoa(i+1)) {
+			t.Fatalf("%d번째 항목이 이번 메시지에 있어야 합니다:\n%s", i+1, body)
 		}
 	}
-	if strings.Contains(body, "漏洞"+itoa(kept+1)) {
-		t.Fatalf("第 %d 条不该出现（它属于下一批）", kept+1)
+	if strings.Contains(body, "취약점"+itoa(kept+1)) {
+		t.Fatalf("%d번째 항목은 다음 묶음이므로 나오면 안 됩니다", kept+1)
 	}
 }
 
 func TestMarkdownBodyKeepsEverythingWhenUnderLimit(t *testing.T) {
 	m := batchMsg(3)
-	body, kept := markdownBody(m, 0) // 0 = 不限制
+	body, kept := markdownBody(m, 0) // 0 = 무제한
 	if kept != len(m.Items) {
-		t.Fatalf("不限制长度时应全部保留，得到 kept=%d", kept)
+		t.Fatalf("길이 무제한이면 모두 유지해야 함, kept=%d", kept)
 	}
-	if strings.Contains(body, "其余") {
-		t.Fatalf("没有截断时不该出现截断提示:\n%s", body)
+	if strings.Contains(body, "나머지") {
+		t.Fatalf("잘리지 않았으면 잘림 안내가 없어야 합니다:\n%s", body)
 	}
 }
 
 func TestMarkdownBodyAlwaysKeepsAtLeastOneItem(t *testing.T) {
-	// 预算小到连一条都装不下时，仍要发出一条（由最终截断兜底）。
-	// 否则一条超长漏洞会把整批永久卡在原地：每次领取都装不下、每次都不发。
+	// 예산이 한 항목도 담지 못해도 최종 잘림으로 하나는 보내야 합니다.
+	// 그렇지 않으면 긴 취약점 하나 때문에 매번 아무것도 보내지 못하고 묶음이 영구 정체됩니다.
 	m := batchMsg(5)
 	_, kept := markdownBody(m, 50)
 	if kept != 1 {
-		t.Fatalf("至少应保留 1 条，得到 %d", kept)
+		t.Fatalf("최소 1개 유지 예상, 실제 %d", kept)
 	}
 }
 
 func TestMarkdownBodySingleReturnsOne(t *testing.T) {
 	_, kept := markdownBody(singleMsg(), 4096)
 	if kept != 1 {
-		t.Fatalf("单条消息应报送达 1 条，得到 %d", kept)
+		t.Fatalf("단일 메시지는 1개 전달로 보고해야 함, 실제 %d", kept)
 	}
-	// 空消息没有可送达的条目。
+	// 빈 메시지에는 전달할 항목이 없습니다.
 	if _, k := markdownBody(Message{}, 4096); k != 0 {
-		t.Fatalf("空消息应报 0 条，得到 %d", k)
+		t.Fatalf("빈 메시지는 0개로 보고해야 함, 실제 %d", k)
 	}
 }
 
 func TestTelegramPackingUsesRuneBudget(t *testing.T) {
 	m := batchMsg(200)
 	text, kept := telegramHTML(m)
-	// Telegram 按**字符数**限长；用字节口径会把中文消息压到三分之一。
+	// Telegram은 문자 수 한도이며 바이트를 쓰면 한글/한자 메시지가 약 1/3로 줄어듭니다.
 	if n := utf8.RuneCountInString(text); n > telegramTextLimit {
-		t.Fatalf("正文 %d 字符超上限 %d", n, telegramTextLimit)
+		t.Fatalf("본문 %d자가 한도 %d 초과", n, telegramTextLimit)
 	}
 	if kept <= 0 || kept >= len(m.Items) {
-		t.Fatalf("应只装下一部分，得到 %d", kept)
+		t.Fatalf("일부만 포함해야 함, 실제 %d", kept)
 	}
-	if !strings.Contains(text, "下一条继续") {
-		t.Fatalf("应说明还有余量未包含:\n%.300s", text)
+	if !strings.Contains(text, "다음 메시지에 계속") {
+		t.Fatalf("미포함 항목이 있음을 안내해야 합니다:\n%.300s", text)
 	}
 }
 
@@ -93,67 +93,67 @@ func TestFeishuPackingReportsKept(t *testing.T) {
 	m := batchMsg(2000)
 	_, kept := feishuCard(m)
 	if kept <= 0 || kept >= len(m.Items) {
-		t.Fatalf("卡片应只装下一部分，得到 %d", kept)
+		t.Fatalf("카드에 일부만 포함해야 함, 실제 %d", kept)
 	}
 }
 
 func TestWebhookAndEmailReportAllItems(t *testing.T) {
-	// 这两个渠道不截断正文，整批都算送达。
+	// 두 채널은 본문을 자르지 않아 전체 묶음을 전달 완료로 처리합니다.
 	m := batchMsg(7)
 	if n := len(m.Items); n != 7 {
-		t.Fatal("前置条件不成立")
+		t.Fatal("선행 조건 불충족")
 	}
-	// 通过渲染器的返回值间接确认：markdownBody(0) 不限制时全部保留。
+	// markdownBody(0)의 반환값으로 무제한일 때 전체 유지됨을 간접 확인합니다.
 	if _, k := markdownBody(m, 0); k != len(m.Items) {
-		t.Fatalf("不限制长度时应用全部，得到 %d", k)
+		t.Fatalf("길이 무제한이면 전부 사용해야 함, 실제 %d", k)
 	}
 }
 
-// TestMarkdownEscapesUntrustedContent 是「不可信内容不得改变消息结构」的回归测试。
-// 标题与摘要来自模型输出（模型读的是被测目标响应），资产名来自被测目标的 URL。
+// TestMarkdownEscapesUntrustedContent는 신뢰할 수 없는 내용이 메시지 구조를 바꾸지 못하는지 검증합니다.
+// 제목/요약은 대상 응답을 읽은 모델 출력이고 자산 이름은 대상 URL에서 옵니다.
 func TestMarkdownEscapesUntrustedContent(t *testing.T) {
 	cases := []struct {
 		name  string
 		item  Item
-		must  []string // 结果里必须出现（转义形态）
-		wrong []string // 结果里不得出现（未转义形态）
+		must  []string // 반드시 포함할 이스케이프된 형태
+		wrong []string // 포함하면 안 되는 원본 형태
 	}{
 		{
-			name: "标题里的换行 + 外链",
+			name: "제목의 줄바꿈과 외부 링크",
 			item: Item{
 				Severity: "high",
-				Name:     "登录口 SQL 注入\n[紧急：点此验证账号](http://attacker.tld)",
+				Name:     "로그인 SQL 인젝션\n[긴급: 계정 확인](http://attacker.tld)",
 			},
-			// 换行必须被折叠（否则能伪造出新的列表项/引用块）；
-			// 方括号与圆括号必须被转义（否则是可点击的外链）。
-			must:  []string{`\[紧急：点此验证账号\]`, `\(http://attacker.tld\)`},
-			wrong: []string{"\n[紧急", "\n\n[紧急"},
+			// 줄바꿈을 접어 목록/인용 위조를 막고
+			// 대괄호/괄호를 이스케이프해 클릭 가능한 외부 링크를 막습니다.
+			must:  []string{`\[긴급: 계정 확인\]`, `\(http://attacker.tld\)`},
+			wrong: []string{"\n[긴급", "\n\n[긴급"},
 		},
 		{
-			name: "标题里的图片信标",
+			name: "제목의 이미지 비콘",
 			item: Item{
 				Severity: "high",
-				Name:     "漏洞 ![](http://attacker.tld/beacon)",
+				Name:     "취약점 ![](http://attacker.tld/beacon)",
 			},
 			must:  []string{`\!`, `\(http://attacker.tld/beacon\)`},
 			wrong: []string{"![]("},
 		},
 		{
-			name: "资产名里的强调与引用",
+			name: "자산 이름의 강조와 인용",
 			item: Item{
 				Severity: "high",
-				Name:     "普通标题",
-				Assets:   []string{"a.com/*注入*>引用"},
+				Name:     "일반 제목",
+				Assets:   []string{"a.com/*주입*>인용"},
 			},
-			must:  []string{`\*注入\*`, `\>`},
-			wrong: []string{"*注入*"},
+			must:  []string{`\*주입\*`, `\>`},
+			wrong: []string{"*주입*"},
 		},
 		{
-			name: "摘要里的反引号与竖线",
+			name: "요약의 백틱과 세로줄",
 			item: Item{
 				Severity: "high",
-				Name:     "标题",
-				Summary:  "`code` | 表格",
+				Name:     "제목",
+				Summary:  "`code` | 표",
 			},
 			must:  []string{"\\`code\\`", `\|`},
 			wrong: []string{"`code`"},
@@ -162,18 +162,18 @@ func TestMarkdownEscapesUntrustedContent(t *testing.T) {
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			m := Message{Items: []Item{tc.item}}
-			// 单条模式的写Item 是三个 markdown 渠道共用的渲染路径。
+			// 단일 모드 writeItem은 세 Markdown 채널이 공유하는 렌더링 경로입니다.
 			var b strings.Builder
 			writeItem(&b, tc.item, "", true)
 			got := b.String()
 			for _, want := range tc.must {
 				if !strings.Contains(got, want) {
-					t.Errorf("缺少转义形态 %q:\n%s", want, got)
+					t.Errorf("이스케이프된 형태 %q 누락:\n%s", want, got)
 				}
 			}
 			for _, bad := range tc.wrong {
 				if strings.Contains(got, bad) {
-					t.Errorf("出现了未转义形态 %q（可被用来注入结构或外链）:\n%s", bad, got)
+					t.Errorf("구조/외부 링크 주입이 가능한 원본 형태 %q 포함:\n%s", bad, got)
 				}
 			}
 			_ = m
@@ -181,22 +181,22 @@ func TestMarkdownEscapesUntrustedContent(t *testing.T) {
 	}
 }
 
-// TestMarkdownEscapeBackslashFirst 锁住转义顺序：反斜杠必须最先处理，
-// 否则会给后面补上的反斜杠再套一层，输出里出现双反斜杠。
+// TestMarkdownEscapeBackslashFirst는 역슬래시를 먼저 처리하는 순서를 검증합니다.
+// 뒤에 추가한 역슬래시까지 다시 처리하면 이중 역슬래시가 출력됩니다.
 func TestMarkdownEscapeBackslashFirst(t *testing.T) {
 	if got := markdownEscape(`a\b*c`); got != `a\\b\*c` {
-		t.Fatalf("转义顺序有误，得到 %q", got)
+		t.Fatalf("이스케이프 순서 오류, 실제 %q", got)
 	}
 }
 
-// TestTelegramTitleHasNoMarkdownEscapes 锁住一个具体的回归：
-// markdown 转义不能泄漏到 Telegram 的 HTML 输出里（曾经在共享的标题函数里
-// 加过转义，结果 Telegram 消息里出现 `\(1\)` 这种可见反斜杠）。
+// TestTelegramTitleHasNoMarkdownEscapes는 공유 제목 함수의 Markdown 이스케이프가
+// Telegram HTML로 새어 나오지 않는지 검증합니다. 이전에는 괄호 앞의
+// 역슬래시가 그대로 표시되는 회귀가 있었습니다.
 func TestTelegramTitleHasNoMarkdownEscapes(t *testing.T) {
-	m := Message{Items: []Item{{Severity: "high", Name: "alert(1) *重点*"}}}
+	m := Message{Items: []Item{{Severity: "high", Name: "alert(1) *중점*"}}}
 	text, _ := telegramHTML(m)
 	if strings.Contains(text, `\(`) || strings.Contains(text, `\*`) {
-		t.Fatalf("Telegram 正文里出现了 markdown 的反斜杠转义:\n%s", text)
+		t.Fatalf("Telegram 본문에 Markdown 역슬래시가 있습니다:\n%s", text)
 	}
 }
 
