@@ -1,13 +1,13 @@
 "use client";
 
-// LLM 重试配置的共用件：五层重试各自的「次数 + 间隔」。
+// LLM 재시도 공통 설정: 다섯 계층의 횟수와 간격.
 //
-// 五层从内到外：建连(SDK) → 空响应(SDK) → 同 provider 安全窗口 → 轮询熔断 → 意图重跑。
-// 前三层跟着端点走，所以每个模型配置都能覆盖全局默认；后两层是进程级的，只有全局一份。
+// 내부부터 연결(SDK) → 빈 응답(SDK) → 동일 공급자 안전 구간 → 순환 선택 회로 차단 → 의도 재실행.
+// 앞 세 계층은 엔드포인트별로 전역값을 덮어쓸 수 있고 뒤 두 계층은 프로세스 전체에 하나만 있습니다.
 //
-// 所有输入都遵循同一套「留空 = 不配置」语义，与后端 db.RetryRule 一致：
-//   次数   空/0 = 用内置默认 | -1 = 关闭这层重试 | >0 = 用这个次数
-//   间隔   空/0 = 用这层原本的指数退避 | >0 = 改用这个固定毫秒间隔
+// 모든 입력은 백엔드 db.RetryRule과 같은 빈 값=미설정 의미를 사용합니다.
+//   횟수: 빈 값/0=기본값, -1=재시도 비활성화, 양수=지정 횟수
+//   간격: 빈 값/0=기본 지수 백오프, 양수=지정한 고정 밀리초 간격
 
 import * as React from "react";
 
@@ -139,8 +139,8 @@ function NumField({
   min: number;
 }) {
   const [text, setText] = React.useState(value === 0 ? "" : String(value));
-  // 父级换了一整套值（读取到策略、切换配置）时跟上；自己敲字时不会走到这里，
-  // 因为那时 value 已经等于本地文本 parse 后的结果。
+  // 정책 조회나 설정 전환으로 부모 값 전체가 바뀌면 동기화합니다. 직접 입력할 때는
+  // value가 이미 로컬 텍스트의 파싱 결과와 같으므로 이 경로를 타지 않습니다.
   React.useEffect(() => {
     const incoming = value === 0 ? "" : String(value);
     setText((cur) => (Number(cur || 0) === value ? cur : incoming));
@@ -186,7 +186,7 @@ export function RetryRuleFields({
           <Label className="text-sm">{meta.title}</Label>
           <span className="text-muted-foreground text-xs">{meta.where}</span>
         </div>
-        {/* 哪些错误会走到这层，具体到状态码——填了旋钮却看不到效果，多半是错误压根不落在这层。 */}
+        {/* 이 계층에서 처리하는 오류와 상태 코드. 설정해도 효과가 없다면 해당 계층 밖 오류일 수 있습니다. */}
         <p className="text-muted-foreground text-xs">
           <span className="font-medium text-foreground">발생 조건</span>：{meta.trigger}
         </p>
@@ -287,7 +287,7 @@ export function RetryPolicyPanel() {
     if (saving) return;
     setSaving(true);
     try {
-      // 后端会把越界值夹回区间并回传，直接用回传值刷新，所见即所存。
+      // 백엔드가 범위를 벗어난 값을 보정해 반환하므로 반환값으로 갱신하여 표시와 저장값을 맞춥니다.
       const saved = await api.saveLLMRetryPolicy(policy);
       setPolicy({ ...ZERO_POLICY, ...saved });
       toast.success("저장 즉시 적용됩니다(현재 진행 중인 호출에는 기존 값 사용)");
