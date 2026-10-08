@@ -1258,7 +1258,7 @@ func (t *ToolSet) addFinding() actool.CoreTool {
 		if t.findingRecorder != nil {
 			recorded, err = t.findingRecorder.Record(ctx, input, refs)
 		} else if len(refs) > 0 {
-			return actool.Errorf("流量证据存储不可用；未登记漏洞"), nil
+			return actool.Errorf("트래픽 증거 저장소를 사용할 수 없어 취약점이 등록되지 않았습니다"), nil
 		} else {
 			recorded, err = t.ts.RecordFinding(ctx, input)
 		}
