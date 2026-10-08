@@ -56,7 +56,7 @@ export const FINDING_STATUSES: FindingStatus[] = [
 
 export const UNASSIGNED_TASK = "__unassigned__";
 
-// 行内编辑缓冲:当前展开行的名称/类别/严重等级。
+// 인라인 편집 버퍼: 현재 펼친 행의 이름/분류/심각도.
 export interface FindingEdit {
   name: string;
   vulnclass: string;
