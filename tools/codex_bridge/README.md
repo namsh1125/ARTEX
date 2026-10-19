@@ -19,7 +19,7 @@ ARTEX OpenAI provider → localhost 연결 서버 → codex exec
 
 - Python 3.10 이상
 - 현재 Codex CLI: `codex exec --help`에 `--ignore-user-config`, `--ephemeral`,
-  `--output-schema`, `--output-last-message`가 있는 버전
+  `--json`, `--output-schema`, `--output-last-message`가 있는 버전
 - 같은 OS 사용자·환경에서 완료한 `codex login`
 - macOS / Linux / WSL 환경. Windows 노트북에서는 **WSL에서 CLI·연결 서버·ARTEX 백엔드**를
   함께 실행하는 구성을 사용하세요. Windows 네이티브 실행은 검증하지 않았습니다.
@@ -118,6 +118,8 @@ curl --max-time 250 http://127.0.0.1:8766/v1/chat/completions \
 ```
 
 `choices[0].message.content`가 오면 기본 연결이 성공한 것입니다.
+`usage.prompt_tokens`, `usage.completion_tokens`, `usage.total_tokens`도 확인하세요.
+캐시 입력은 `usage.prompt_tokens_details.cached_tokens`로 전달합니다.
 그다음 ARTEX의 일반 대화 → 무해한 도구 호출 → 도구 결과를 읽는 후속 응답 순으로 확인합니다.
 ARTEX의 UI 연결 테스트에는 기존 30초 제한이 있어 CLI 첫 실행이 오래 걸리면 실패할 수 있습니다.
 위 curl로 먼저 구분하세요. 이 변경은 기존 전역 연결 테스트 시간을 변경하지 않습니다.
@@ -128,8 +130,15 @@ ARTEX의 UI 연결 테스트에는 기존 30초 제한이 있어 CLI 첫 실행�
 - 대화 전체와 도구 호출 ID를 매 요청 전달합니다. `resume --last`로 대화를 섞지 않습니다.
 - `tool_choice`의 auto/none/required/지정 도구와 `parallel_tool_calls=false`를 검증합니다.
 - 스트리밍 요청은 **응답 완성 후** SSE 프레임으로 반환합니다. 실시간 토큰 스트리밍이 아닙니다.
-- 토큰 사용량은 추측하지 않고 생략합니다. ARTEX 사용량 화면의 0은 실제 무료 사용량을 뜻하지 않습니다.
-  `stream_options.include_usage`도 실제 사용량을 제공하지 않습니다.
+- 토큰 사용량은 `codex exec --json`의 `turn.completed.usage`에서 수집합니다.
+  입력·출력·캐시 입력과 CLI가 제공하는 추론 토큰을 Chat Completions `usage`로 전달합니다.
+  캐시는 입력의 부분집합, 추론은 출력의 부분집합이므로 총합에 다시 더하지 않습니다.
+  스트리밍은 `stream_options: {"include_usage": true}`일 때 `[DONE]` 직전에
+  `choices: []`인 사용량 전용 이벤트를 한 번 보냅니다.
+  CLI가 사용량 이벤트를 제공하지 않으면 추측하지 않고 `usage`를 생략합니다.
+  사용량은 CLI에 전달된 전체 프롬프트·도구 정의·구조화 출력 등을 포함하며 요금이나 구독 잔여량은 아닙니다.
+  이전 버전이 기록하지 않은 과거 토큰은 복구하지 않습니다. 업데이트 후 연결 서버를 재시작해야
+  이후 호출부터 ARTEX에 집계됩니다. 원본 CLI 이벤트는 임시 파일로만 처리하고 종료 시 정리합니다.
 - `temperature`, `top_p`, `max_tokens`, `max_completion_tokens`, `reasoning_effort`, `user`는
   기존 클라이언트와의 호환을 위해 수신하지만 CLI에 매핑하지 않습니다. 출력 토큰 상한은 보장하지 않습니다.
 - Responses API, 이미지·오디오, `response_format`, `stop`, `thinking` 등 미지원 필드는 400으로 거절합니다.
@@ -162,7 +171,8 @@ tools/codex_bridge/.venv/bin/python -m unittest discover -s tools/codex_bridge -
 
 테스트는 가짜 CLI 프로세스와 로컬 HTTP 서버를 사용하며 계정·외부 모델 호출이 필요하지 않습니다.
 본문/도구 호출 변환, 인자 스키마·호출 선택 검증, 인증, 동시성 제한, JSON/SSE,
-프로세스 stdin 전달·비정상 종료·타임아웃·임시 파일 정리를 확인합니다.
+프로세스 stdin 전달·비정상 종료·타임아웃·임시 파일 정리, 실제 사용량 이벤트 변환,
+캐시 중복 합산 방지, JSON/SSE 사용량 전달·누락·오류 처리를 확인합니다.
 ARTEX 전체 시스템과 실제 로그인된 Codex를 묶은 E2E, Windows 네이티브 동작,
 로컬 LLM 대비 성능은 별도 검증이 필요합니다.
 

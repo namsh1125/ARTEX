@@ -5,6 +5,7 @@ The CLI produces a proposed assistant message. ARTEX remains responsible for
 executing its tools; this process never executes returned tool calls.
 """
 import argparse
+from dataclasses import dataclass
 import hmac
 import json
 import os
@@ -74,6 +75,8 @@ def prepare(body):
     options = body.get("stream_options", {})
     if not isinstance(options, dict) or set(options) - {"include_usage"}:
         raise BridgeError(400, "Unsupported stream_options")
+    if not isinstance(options.get("include_usage", False), bool):
+        raise BridgeError(400, "stream_options.include_usage must be boolean")
     messages = body.get("messages")
     if not isinstance(messages, list) or not messages:
         raise BridgeError(400, "messages must be a nonempty array")
@@ -169,6 +172,62 @@ def decode_answer(answer, validators, choice, forced, parallel):
     return message
 
 
+@dataclass
+class CodexResult:
+    answer: dict
+    usage: dict | None = None
+
+
+def read_usage(events):
+    """Read CLI-owned counters, never counters in the model's final answer."""
+    totals = {"input_tokens": 0, "output_tokens": 0, "cached_input_tokens": 0}
+    found = False
+    missing = False
+    reasoning = 0
+    has_reasoning = False
+    try:
+        for line in events:
+            if not line.strip():
+                continue
+            event = json.loads(line)
+            if not isinstance(event, dict):
+                raise ValueError("invalid event")
+            if event.get("type") != "turn.completed":
+                continue
+            usage = event.get("usage")
+            if usage is None:
+                missing = True
+                continue
+            if not isinstance(usage, dict):
+                raise ValueError("invalid usage")
+            for key in totals:
+                value = usage.get(key)
+                if type(value) is not int or value < 0:
+                    raise ValueError("invalid counter")
+            if usage["cached_input_tokens"] > usage["input_tokens"]:
+                raise ValueError("cached tokens exceed input")
+            if "reasoning_output_tokens" in usage:
+                value = usage["reasoning_output_tokens"]
+                if type(value) is not int or not 0 <= value <= usage["output_tokens"]:
+                    raise ValueError("invalid reasoning counter")
+                reasoning += value
+                has_reasoning = True
+            for key in totals:
+                totals[key] += usage[key]
+            found = True
+    except (ValueError, UnicodeError) as exc:
+        raise BridgeError(502, "Codex returned invalid usage events") from exc
+    if not found or missing:
+        return None  # Missing metering is not zero usage.
+    result = {"prompt_tokens": totals["input_tokens"],
+              "completion_tokens": totals["output_tokens"],
+              "total_tokens": totals["input_tokens"] + totals["output_tokens"],
+              "prompt_tokens_details": {"cached_tokens": totals["cached_input_tokens"]}}
+    if has_reasoning:
+        result["completion_tokens_details"] = {"reasoning_tokens": reasoning}
+    return result
+
+
 class CodexRunner:
     def __init__(self, binary="codex", model=None, timeout=240, effort=None):
         self.binary, self.model, self.timeout, self.effort = binary, model, timeout, effort
@@ -180,7 +239,7 @@ class CodexRunner:
             root = Path(tmp)
             schema, output = root / "schema.json", root / "answer.json"
             schema.write_text(json.dumps(ANSWER_SCHEMA), encoding="utf-8")
-            args = [self.binary, "exec", "--ignore-user-config", "--ephemeral",
+            args = [self.binary, "exec", "--json", "--ignore-user-config", "--ephemeral",
                     "--skip-git-repo-check", "--sandbox", "read-only",
                     "-c", 'approval_policy="never"',
                     "-c", 'forced_login_method="chatgpt"',
@@ -196,7 +255,10 @@ class CodexRunner:
                 env.pop(key, None)
             # No shell interpolation, no model-directed local command execution.
             try:
-                with subprocess.Popen(args, stdin=subprocess.PIPE, stdout=subprocess.DEVNULL,
+                # Temporary output avoids unbounded in-memory communicate() capture.
+                # JSONL may contain assistant text; never persist it in server logs.
+                with tempfile.TemporaryFile() as events, subprocess.Popen(
+                                      args, stdin=subprocess.PIPE, stdout=events,
                                       stderr=subprocess.DEVNULL, cwd=root, env=env,
                                       start_new_session=(os.name == "posix")) as proc:
                     try:
@@ -210,9 +272,13 @@ class CodexRunner:
                         raise BridgeError(504, "Codex timed out; reduce context or raise --timeout") from exc
                     if proc.returncode:
                         raise BridgeError(502, "Codex failed; check codex login status, CLI version, model access and usage limits")
+                    if events.tell() > MAX_OUTPUT:
+                        raise BridgeError(502, "Codex event output is too large")
+                    events.seek(0)
+                    usage = read_usage(events)
                 if not output.exists() or output.stat().st_size > MAX_OUTPUT:
                     raise BridgeError(502, "Codex output missing or too large")
-                return json.loads(output.read_text(encoding="utf-8"))
+                return CodexResult(json.loads(output.read_text(encoding="utf-8")), usage)
             except FileNotFoundError as exc:
                 raise BridgeError(503, "Codex executable not found") from exc
             except (ValueError, UnicodeError) as exc:
@@ -287,15 +353,17 @@ class Handler(BaseHTTPRequestHandler):
             except (ValueError, UnicodeError):
                 raise BridgeError(400, "Invalid JSON request")
             prompt, validators, choice, forced = prepare(body)
-            answer = self.server.runner(prompt)
-            message = decode_answer(answer, validators, choice, forced,
+            result = self.server.runner(prompt)
+            message = decode_answer(result.answer, validators, choice, forced,
                                     body.get("parallel_tool_calls", True))
             response = {"id": "chatcmpl-" + uuid.uuid4().hex,
                         "object": "chat.completion", "created": int(time.time()),
                         "model": ALIAS, "choices": [{"index": 0, "message": message,
                         "finish_reason": "tool_calls" if message.get("tool_calls") else "stop"}]}
+            if result.usage is not None:
+                response["usage"] = result.usage
             if body.get("stream"):
-                self.send_sse(response)
+                self.send_sse(response, body.get("stream_options", {}).get("include_usage", False))
             else:
                 self.send_json(200, response)
         except BridgeError as exc:
@@ -308,7 +376,7 @@ class Handler(BaseHTTPRequestHandler):
             if acquired:
                 self.server.slot.release()
 
-    def send_sse(self, response):
+    def send_sse(self, response, include_usage=False):
         # Buffered compatibility stream, NOT live token streaming. Headers are
         # delayed so CLI failures can still return an actual HTTP error status.
         self.send_response(200)
@@ -324,6 +392,9 @@ class Handler(BaseHTTPRequestHandler):
         for part, finish in ((delta, None), ({}, choice["finish_reason"])):
             event = dict(base, choices=[{"index": 0, "delta": part, "finish_reason": finish}])
             self.wfile.write(("data: " + json.dumps(event, ensure_ascii=False) + "\n\n").encode())
+        if include_usage and "usage" in response:
+            event = dict(base, choices=[], usage=response["usage"])
+            self.wfile.write(("data: " + json.dumps(event) + "\n\n").encode())
         self.wfile.write(b"data: [DONE]\n\n")
         self.wfile.flush()
 
